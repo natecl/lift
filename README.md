@@ -44,6 +44,7 @@ Lift initially moves one coding workspace. It is not:
 
 ## Documentation
 
+- [docs/README.md](docs/README.md) - documentation map and recommended reading paths
 - [PRD.md](PRD.md) - product requirements and acceptance criteria
 - [docs/CONTEXT.md](docs/CONTEXT.md) - product thesis, principles, and terminology
 - [docs/RESEARCH.md](docs/RESEARCH.md) - user evidence and competitive landscape
@@ -55,4 +56,3 @@ Lift initially moves one coding workspace. It is not:
 ## Current product sentence
 
 Lift teleports your active coding workspace to a persistent cloud computer so any coding agent can keep working after you close your laptop.
-
