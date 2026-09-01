@@ -26,6 +26,29 @@ The raw research artifact currently lives outside this repository at:
 
 `~/Documents/Last30Days/persistent-cloud-workspaces-for-coding-agents-with-phone-access-and-local-to-cloud-handoff-raw-v3.md`
 
+## Runtime and provider architecture pass
+
+A second focused pass on 2026-08-31 compared persistent workspace substrates and the official remote-control paths for Codex and Claude Code. It collected 45 items across Reddit, X, Hacker News, and GitHub, then cross-checked material platform claims against vendor documentation.
+
+The decision-level findings are:
+
+- one Ubuntu EC2 VM with encrypted EBS is the fastest first substrate;
+- Cloudflare Sandbox and Containers are useful for ephemeral work and edge services but do not currently provide the authoritative persistent local disk Lift needs;
+- Daytona VM sandboxes are the strongest managed production candidate to evaluate after validation;
+- Fly Machines are a credible lower-level alternative with more lifecycle and recovery responsibility;
+- ECS/Fargate, Modal, and similar job runtimes are better suited to bounded work than a living personal workspace;
+- Lift should preserve existing provider applications rather than building its own mobile interface;
+- the documented Codex phone path still requires an awake Mac or Windows desktop host, even when work executes on a remote SSH host;
+- current Codex CLI commands suggest an experimental headless daemon and pairing path that must be tested before it becomes a product promise;
+- Claude Code has the cleaner documented direct mobile-to-headless-process workflow;
+- the workspace substrate can be agent-neutral even though mobile pairing, authentication, approvals, and session resume remain provider-specific.
+
+The complete synthesis, comparison table, sources, limitations, and raw-run metadata are in [`RUNTIME_RESEARCH.md`](RUNTIME_RESEARCH.md). The provider-blind runner design and Codex recipe spike are in [`REMOTE_RUNNER.md`](REMOTE_RUNNER.md).
+
+Raw artifact:
+
+`~/Documents/Last30Days/persistent-cloud-workspaces-for-coding-agents-with-phone-access-and-local-to-cloud-handoff-raw-v3-2026-08-31.md`
+
 ## Evidence of the problem
 
 Repeated user situations include:
@@ -78,9 +101,9 @@ The hypothesized gap is the transition from a messy but functioning local worksp
 
 Users increasingly expect agents to keep working in the background, survive device changes, and remember project state.
 
-### Mobile is a control plane
+### Existing provider clients are the control plane
 
-The useful phone behaviors are directing, checking, approving, stopping, and viewing output. Manual coding is not the core job.
+The useful phone behaviors are directing, checking, approving, stopping, and viewing output. Manual coding is not the core job, and Lift does not need to recreate the provider applications that already support those behaviors.
 
 ### Context is broader than a repository
 
@@ -129,6 +152,5 @@ Ask users to demonstrate their current workflow rather than evaluate a pitch.
 4. Which files or credentials would you refuse to upload?
 5. What must you be able to do from your phone?
 6. Have you paid for a VPS, Codespaces, or another solution?
-7. Would you run `lift up` on a real project now?
+7. Would you click Lift Off on a real project now?
 8. After a successful handoff, will you pay or leave a deposit?
-
