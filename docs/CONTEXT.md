@@ -16,16 +16,16 @@ The long-term vision can expand from a personal computer to a shared company com
 
 ## Initial wedge
 
-One active coding workspace moves from a local laptop to an always-available cloud environment. Existing agents can operate there, and the user can control them from a phone.
+One active coding workspace moves from a local laptop to an always-available cloud environment. Existing agents can operate there, and the user controls them through the provider interface they already use.
 
 The wedge is intentionally smaller than the vision:
 
 - one person;
 - one project;
 - Linux cloud runtime;
-- Claude Code and Codex;
-- files, terminal, agent state, and one web preview;
-- phone control rather than phone-based manual coding.
+- Codex first, with Claude Code or any remote-capable agent running through the same provider-blind workload runner;
+- files, terminal, approved agent state, and restartable processes;
+- provider-owned phone control rather than a Lift mobile application.
 
 ## Core insight
 
@@ -41,9 +41,9 @@ Lift should own the transition between environments.
 
 Every experience should feel like continuing existing work rather than configuring a new computer.
 
-### 2. The agent is the interface
+### 2. The existing agent is the interface
 
-The phone should emphasize the goal, current work, decisions, changes, preview, and approvals. A cramped code editor is secondary.
+The user's Codex, Claude, or other provider application should remain the place for prompts, approvals, notifications, and conversation. Lift should not ask the user to adopt another chat surface.
 
 ### 3. Bring your agent
 
@@ -57,9 +57,13 @@ Lift can automate discovery, but the user must be able to see what moves, what r
 
 No handoff is successful if it risks overwriting local or cloud changes.
 
+Lift uses an explicit ownership handoff instead of pretending two live directories are one. The laptop is primary before Lift Off, the cloud is primary while lifted, and the laptop becomes primary again only after a verified Land operation.
+
 ### 6. Consumer infrastructure should not feel like infrastructure
 
 Avoid exposing containers, regions, SSH keys, Terraform, networking, or instance families during the core journey.
+
+The recurring action is one button. Provider login is connected once through a normal browser flow. A supported user should never need to open a terminal, copy a token, or understand how the remote process works.
 
 ### 7. Start narrow enough to become excellent
 
@@ -79,9 +83,11 @@ Useful emotional moments:
 
 - “It found everything this project needs.”
 - “I can actually close the lid now.”
-- “The preview is already on my phone.”
+- “The same project is already in Codex on my phone.”
 - “It knew exactly where I left off.”
+- “Everything it changed is already back on my laptop.”
 - “I can see and revoke every permission.”
+- “It literally just said I could close my laptop.”
 
 Avoid:
 
@@ -90,4 +96,3 @@ Avoid:
 - a toy mobile code editor;
 - claims that imply every laptop application is supported;
 - autonomous behavior without visible goals, status, or stop controls.
-

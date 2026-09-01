@@ -1,5 +1,7 @@
 # Prototype and Launch Plan
 
+This document is the tactical first build and alpha plan. Phase gates are defined in [`ROADMAP.md`](ROADMAP.md); final release readiness is defined in [`LAUNCH_CHECKLIST.md`](LAUNCH_CHECKLIST.md).
+
 ## Launch recommendation
 
 Launch a landing page immediately and a private alpha when one real project can complete the full local-to-cloud-to-phone-to-local loop.
@@ -8,45 +10,50 @@ Do not publicly launch Lift as a general cloud laptop. The first launch should m
 
 ## Weekend prototype
 
-### Day 1: Lift a real repository
+### Day 1: Prove the Codex connection
 
-- Implement local authentication and `lift inspect`.
+- Manually provision one x86_64 Ubuntu EC2 instance with an encrypted EBS data volume.
+- Install and authenticate the current Codex CLI through an explicit user-owned flow.
+- Bootstrap the experimental durable remote-control daemon.
+- Generate a pairing code and attempt to pair ChatGPT mobile directly with the Linux host.
+- Start a task, approve an action, disconnect the laptop, restart the daemon, and record behavior.
+- Configure the documented ChatGPT Desktop-to-SSH path as a fallback and diagnostic control.
+
+End-of-day gate: either direct headless Codex control works with the laptop disconnected, or Lift records precisely which unsupported dependency blocks the promise. Do not build around assumed pairing behavior.
+
+### Day 2: Lift a real repository
+
+- Implement the internal inspect primitive and the first reviewed state manifest.
+- Add the minimal signed desktop helper for folder selection, local manifest generation, and transfer.
+- Add a minimal dashboard with Workspaces and a Codex connection card that presents the provider-owned login established in the Day 1 spike.
 - Discover Git status, untracked files, runtimes, package manager, and development command.
-- Produce an include and exclude manifest.
-- Provision one isolated cloud VM and persistent volume.
-- Transfer an approved workspace snapshot.
+- Transfer an approved dirty workspace to the existing EC2 and EBS runtime.
+- Verify that local files are not modified and cloud files match the manifest hashes.
 
-End-of-day proof: an uncommitted local project appears correctly on a cloud machine.
+End-of-day proof: without a terminal, an uncommitted local project appears correctly on the persistent cloud machine and Codex can read it.
 
-### Day 2: Run existing agents
+### Day 3: Turn the spike into the first vertical slice
 
-- Install Claude Code and Codex in the workspace image.
-- Implement one adapter end to end.
-- Start or continue a task using an explicit goal and generated handoff summary.
-- Supervise the agent and one development process.
-- Stream structured status and terminal output.
+- Implement the runtime-provider boundary for create, start, stop, exec, upload, snapshot, and status.
+- Implement the provider-blind remote workload runner.
+- Express Codex installation and daemon startup entirely as a reviewed recipe.
+- Supervise the Codex daemon under `systemd` and feed readiness into the generic connection state machine.
+- Wire one `Lift Off` button to workspace transfer, runtime wake, native remote startup, readiness verification, and the safe-to-close state.
+- Generate a provider-neutral continuation package for semantic restart.
 
-End-of-day proof: the agent changes code after the local computer disconnects.
+End-of-day proof: one `Lift Off` click moves the workspace, starts the supported Codex connection mode, reaches a verified safe-to-close state, and Codex changes cloud files.
 
-### Day 3: Control it from a phone
+### Day 4: Make state safe and recoverable
 
-- Build a minimal responsive PWA.
-- Show goal, status, recent output, changed files, and attention requests.
-- Allow typed or spoken redirection.
-- Add stop and approve controls.
-- Route one authenticated development preview.
-
-End-of-day proof: close the laptop, request a change from a phone, and see it in the preview.
-
-### Day 4: Make it trustworthy
-
-- Add clear transfer review and secret exclusions.
+- Harden transfer review and secret exclusions.
 - Add idle stop and compute visibility.
-- Implement a safe export or `lift pull` path.
+- Implement the local/cloud ownership state machine, versioned checkpoints, `Land Workspace`, and automatic verified application when the local helper reconnects.
+- Capture baseline, cloud, and returning local state as commits in a Lift-private bare repository without changing the user's branch or index.
+- Perform the three-way Land merge in an isolated worktree and route conflicts to that recoverable worktree or a sibling copy instead of overwriting.
 - Add failure recovery and a demo workspace.
-- Instrument the activation funnel.
+- Verify that stopping compute preserves EBS state and that restart provides semantic continuity.
 
-End-of-day proof: another person can complete the loop without infrastructure help.
+End-of-day proof: the founder can disconnect, return, and see cloud changes reflected locally without a terminal, data loss, or a Lift-built phone interface.
 
 ## Deliberate prototype shortcuts
 
@@ -55,26 +62,27 @@ End-of-day proof: another person can complete the loop without infrastructure he
 - Use one AWS region.
 - Use one VM per workspace.
 - Allow only one active agent session.
+- Validate Codex first; add providers as recipes through the same runner.
+- Let the provider own conversation, approvals, voice, and notifications.
 - Require a conventional package-manager lockfile and development command.
 - Use a generated continuation package if official agent-session resume is unavailable.
 - Keep alpha access invite-only.
 
-Do not shortcut isolation, secret handling, work preservation, or authenticated previews.
+Do not shortcut isolation, secret handling, work preservation, or the distinction between observed process health and provider-owned connection state.
 
 ## Demo script
 
-1. Open a familiar local application and make an uncommitted edit.
-2. Ask Claude Code or Codex to implement a visible feature.
-3. While it is working, run `lift up`.
-4. Show the concise state manifest and approve it.
-5. Close the laptop lid.
-6. Open Lift on a phone and show that the task continues.
-7. Speak a refinement into the phone.
-8. Open the protected preview and see the refinement.
-9. Show the changed-file summary and stop the workspace.
-10. Reopen the laptop and safely retrieve the result.
+1. Open a familiar local project and make an uncommitted edit.
+2. Connect Codex through Lift's provider-owned browser flow.
+3. Select the project, review the concise state manifest, and click `Lift Off`.
+4. Wait for `Ready. You can close this laptop.`
+5. If direct headless pairing passed, close the laptop completely and continue from ChatGPT mobile.
+6. Ask Codex for a visible refinement and inspect the changed files through Codex.
+7. Choose `Land Workspace` while the laptop remains offline.
+8. Reopen the laptop and show the verified cloud result appearing automatically in the local workspace.
+9. Optionally wake the workspace again to demonstrate durable files and semantic restart.
 
-The demo should take less than three minutes excluding agent generation time.
+The demo should take less than three minutes excluding provisioning and agent generation time. If the direct pairing spike has not passed, demo the desktop-to-SSH fallback but do not show or describe it as laptop-independent.
 
 ## Landing-page outline
 
@@ -82,19 +90,19 @@ The demo should take less than three minutes excluding agent generation time.
 
 Close your laptop. Your agents keep building.
 
-Start locally with Claude Code or Codex. Lift your active workspace into a persistent cloud computer and continue from your phone.
+Start locally with Codex. Lift your active workspace into a persistent cloud computer and continue through Codex without rebuilding your environment.
 
 ### Proof
 
 - Your uncommitted work comes with you.
 - Your existing agent and workflow stay intact.
-- Your preview opens on your phone.
-- Your laptop can be completely off.
+- You keep using your existing agent interface.
+- Your laptop can be completely off when the selected provider supports direct headless remote control.
 - You can see and revoke every permission.
 
 ### Contrast
 
-No VPS setup. No SSH juggling. No fresh cloud environment. No new coding agent.
+No VPS setup. No SSH juggling. No fresh cloud environment. No new coding agent. No new mobile chat app.
 
 ### Call to action
 
@@ -133,4 +141,3 @@ Reconsider the wedge when users consistently prefer starting cloud-first, only w
 - Direct outreach to people publicly describing VPS and phone workflows.
 - Open-source the local manifest inspector if it improves trust and distribution.
 - Avoid a broad Product Hunt launch until real repeat usage exists.
-
