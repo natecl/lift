@@ -5,7 +5,9 @@ from __future__ import annotations
 
 import argparse
 import base64
+from contextlib import contextmanager
 from datetime import UTC, datetime
+import fcntl
 import hashlib
 import json
 import os
@@ -26,8 +28,16 @@ from workspace import (
     WorkspaceError,
     build_lift_off_archive,
     capture_baseline,
+    content_manifest,
     create_fixture,
+    fixture_policy_for_commit,
     sha256_file,
+)
+from land import LandError, land_fixture, validate_conflicted_land_fixture
+from live_land import (
+    LiveLandError,
+    build_land_acknowledgement,
+    import_final_checkpoint,
 )
 
 
@@ -36,6 +46,7 @@ REPO_ROOT = SCRIPT_DIR.parent.parent
 LOCAL_ROOT = REPO_ROOT / ".lift-spike"
 STATE_PATH = LOCAL_ROOT / "state.json"
 EVENTS_PATH = LOCAL_ROOT / "events.ndjson"
+LAND_CONTROLLER_LOCK_PATH = LOCAL_ROOT / "land-controller.lock"
 MAX_LOCAL_STATE_BYTES = 1024 * 1024
 MAX_LOCAL_EVENTS_BYTES = 16 * 1024 * 1024
 MAX_LOCAL_EVENT_BYTES = 64 * 1024
@@ -46,6 +57,7 @@ GUEST_DIR = SCRIPT_DIR / "guest"
 RECIPE_PATH = SCRIPT_DIR / "recipes" / "codex-headless.json"
 CODEX_PROJECT_PATH = GUEST_DIR / "codex_project.py"
 APPROVAL_OBSERVER_PATH = GUEST_DIR / "approval_observer.py"
+LANDING_PATH = GUEST_DIR / "landing.py"
 
 PROFILE = "lift-spike"
 REGION = "us-east-1"
@@ -58,6 +70,9 @@ REMOTE_RUNTIME_RELEASE_ROOT = "/opt/lift-spike-releases"
 REMOTE_APPROVAL_OBSERVATION_ROOT = "/var/lib/lift-spike/approval-observations"
 APPROVAL_OBSERVER_TIMEOUT_SECONDS = 15 * 60
 RUN_ID_PATTERN = re.compile(r"^p0-[0-9]{14}-[0-9a-f]{4}$")
+LAND_OPERATION_ID_PATTERN = re.compile(
+    r"^p0-[0-9]{14}-[0-9a-f]{4}-land$"
+)
 INSTANCE_ID_PATTERN = re.compile(r"^i-[0-9a-f]{8,17}$")
 VOLUME_ID_PATTERN = re.compile(r"^vol-[0-9a-f]{8,17}$")
 AMI_ID_PATTERN = re.compile(r"^ami-[0-9a-f]{8,17}$")
@@ -107,6 +122,16 @@ SAFE_TO_CLOSE_REQUIRED_GATES = (
 )
 MIN_AUTO_STOP_REMAINING_SECONDS = 60 * 60
 MAX_S3_VERSION_ID_BYTES = 1024
+LAND_PHASES = {
+    "REQUESTED",
+    "CLOUD_FROZEN",
+    "FINAL_CHECKPOINT_DURABLE",
+    "IMPORTED",
+    "RECONCILED",
+    "NEEDS_REVIEW",
+    "ACK_DURABLE",
+    "COMPLETE",
+}
 RESTORE_TEST_KEYS = {
     "bundleLocalSha256",
     "manifestLocalSha256",
@@ -191,6 +216,37 @@ def now_iso() -> str:
     return datetime.now(UTC).replace(microsecond=0).isoformat()
 
 
+@contextmanager
+def land_controller_lock() -> Any:
+    """Serialize the complete controller-side Land transaction.
+
+    A single lock spans local state, exact S3 version selection, guest receipt,
+    reconciliation, acknowledgement, and optional compute cleanup. Without it,
+    two resume attempts could each create a different immutable S3 version for
+    the same bytes and permanently disagree about the final checkpoint.
+    """
+
+    directory, name = private_parent_descriptor(LAND_CONTROLLER_LOCK_PATH)
+    descriptor = -1
+    try:
+        descriptor = validated_private_file_descriptor(
+            directory,
+            name,
+            os.O_RDWR,
+            maximum_size=0,
+            create=True,
+        )
+        fcntl.flock(descriptor, fcntl.LOCK_EX)
+        yield
+    finally:
+        if descriptor >= 0:
+            try:
+                fcntl.flock(descriptor, fcntl.LOCK_UN)
+            finally:
+                os.close(descriptor)
+        os.close(directory)
+
+
 def scrubbed_environment() -> dict[str, str]:
     environment = os.environ.copy()
     forbidden = {
@@ -221,6 +277,17 @@ def scrubbed_environment() -> dict[str, str]:
     return environment
 
 
+def command_environment(command: list[str]) -> dict[str, str]:
+    environment = scrubbed_environment()
+    if command and Path(command[0]).name == "git":
+        for key in list(environment):
+            if key.startswith("GIT_"):
+                environment.pop(key, None)
+        environment["GIT_CONFIG_NOSYSTEM"] = "1"
+        environment["GIT_CONFIG_GLOBAL"] = os.devnull
+    return environment
+
+
 def run(
     command: list[str],
     *,
@@ -231,7 +298,7 @@ def run(
     completed = subprocess.run(
         command,
         cwd=REPO_ROOT,
-        env=scrubbed_environment(),
+        env=command_environment(command),
         text=True,
         capture_output=capture,
         timeout=timeout,
@@ -251,7 +318,7 @@ def run_bytes(
     completed = subprocess.run(
         command,
         cwd=cwd or REPO_ROOT,
-        env=scrubbed_environment(),
+        env=command_environment(command),
         capture_output=True,
     )
     if check and completed.returncode != 0:
@@ -505,6 +572,59 @@ def atomic_state(value: dict[str, Any]) -> None:
         os.close(directory_descriptor)
 
 
+def atomic_private_json(path: Path, value: dict[str, Any]) -> None:
+    try:
+        encoded = (json.dumps(value, indent=2, sort_keys=True) + "\n").encode("utf-8")
+    except (TypeError, ValueError) as exc:
+        raise SpikeError("private Land record is not serializable") from exc
+    if len(encoded) > MAX_LOCAL_STATE_BYTES:
+        raise SpikeError("private Land record exceeds its size limit")
+    directory, name = private_parent_descriptor(path)
+    temporary = f".{name}.{secrets.token_hex(16)}.tmp"
+    descriptor = -1
+    try:
+        if private_file_exists(path, maximum_size=MAX_LOCAL_STATE_BYTES):
+            pass
+        descriptor = os.open(
+            temporary,
+            os.O_WRONLY
+            | os.O_CREAT
+            | os.O_EXCL
+            | getattr(os, "O_NOFOLLOW", 0),
+            PRIVATE_FILE_MODE,
+            dir_fd=directory,
+        )
+        offset = 0
+        while offset < len(encoded):
+            written = os.write(descriptor, encoded[offset:])
+            if written <= 0:
+                raise SpikeError("could not write complete private Land record")
+            offset += written
+        os.fsync(descriptor)
+        metadata = os.fstat(descriptor)
+        if (
+            not stat.S_ISREG(metadata.st_mode)
+            or metadata.st_uid != os.geteuid()
+            or metadata.st_nlink != 1
+            or stat.S_IMODE(metadata.st_mode) != PRIVATE_FILE_MODE
+        ):
+            raise SpikeError("private Land record temporary file is unsafe")
+        os.close(descriptor)
+        descriptor = -1
+        os.replace(temporary, name, src_dir_fd=directory, dst_dir_fd=directory)
+        os.fsync(directory)
+    except OSError as exc:
+        raise SpikeError(f"cannot persist private Land record: {exc}") from exc
+    finally:
+        if descriptor >= 0:
+            os.close(descriptor)
+        try:
+            os.unlink(temporary, dir_fd=directory)
+        except FileNotFoundError:
+            pass
+        os.close(directory)
+
+
 def valid_s3_bucket_name(value: Any) -> bool:
     return (
         isinstance(value, str)
@@ -609,8 +729,34 @@ def validate_loaded_state(state: Any) -> dict[str, Any]:
     workspace = state.get("workspace")
     if not isinstance(workspace, dict):
         raise SpikeError("local spike state has no workspace record")
-    if workspace.get("lease") not in {"LOCAL_PRIMARY", "LIFTING", "CLOUD_PRIMARY"}:
+    if workspace.get("lease") not in {
+        "LOCAL_PRIMARY",
+        "LIFTING",
+        "CLOUD_PRIMARY",
+        "LANDING",
+    }:
         raise SpikeError("local spike state has an invalid workspace lease")
+    land_state = workspace.get("land")
+    if land_state is not None:
+        if not isinstance(land_state, dict) or land_state.get("schemaVersion") != 1:
+            raise SpikeError("local spike state has an invalid Land operation")
+        operation_id = land_state.get("operationId")
+        phase = land_state.get("phase")
+        ordinal = land_state.get("ordinal")
+        if (
+            not isinstance(operation_id, str)
+            or LAND_OPERATION_ID_PATTERN.fullmatch(operation_id) is None
+            or phase not in LAND_PHASES
+            or isinstance(ordinal, bool)
+            or not isinstance(ordinal, int)
+            or ordinal < 1
+            or ordinal > 9999
+        ):
+            raise SpikeError("local spike state has invalid Land operation identity")
+        if phase == "COMPLETE" and workspace.get("lease") != "LOCAL_PRIMARY":
+            raise SpikeError("completed Land state must return the local ownership lease")
+        if phase != "COMPLETE" and workspace.get("lease") != "LANDING":
+            raise SpikeError("incomplete Land state must retain the LANDING lease")
     expected_run_dir = LOCAL_ROOT / "runs" / run_id
     if (
         "localPath" in workspace
@@ -766,7 +912,14 @@ def assert_stack_absent_for_create(stack_name: str) -> None:
         "An error occurred (ValidationError) when calling the DescribeStacks operation: "
         f"Stack with id {stack_name} does not exist"
     )
-    if (completed.stdout or "").strip() or (completed.stderr or "").strip() != expected_error:
+    # AWS CLI 2.35 added a stable diagnostic prefix to service errors. Keep
+    # this proof fail-closed by accepting only the exact legacy response or
+    # that same exact response with the documented CLI prefix.
+    accepted_errors = {expected_error, f"aws: [ERROR]: {expected_error}"}
+    if (
+        (completed.stdout or "").strip()
+        or (completed.stderr or "").strip() not in accepted_errors
+    ):
         raise SpikeError(
             "CloudFormation did not prove that the exact stack name is available"
         )
@@ -955,6 +1108,7 @@ def build_runtime_bundle(run_dir: Path) -> tuple[Path, str]:
         )
         archive.add(GUEST_DIR / "reconstruct.py", arcname="reconstruct.py", recursive=False)
         archive.add(GUEST_DIR / "checkpoint.py", arcname="checkpoint.py", recursive=False)
+        archive.add(LANDING_PATH, arcname="landing.py", recursive=False)
         archive.add(RECIPE_PATH, arcname="recipes/codex-headless.json", recursive=False)
     return destination, sha256_file(destination)
 
@@ -1018,6 +1172,7 @@ def runtime_install_commands(
         "approval_observer.py",
         "reconstruct.py",
         "checkpoint.py",
+        "landing.py",
         "recipes/codex-headless.json",
     }
     if set(expected_files) != expected_names:
@@ -1282,7 +1437,7 @@ def runtime_install_commands(
         '  test "$(stat -c \'%a:%u:%g:%F\' -- "$release")" = "755:0:0:directory"',
         '  test "$(stat -c \'%a:%u:%g:%F\' -- "$release/recipes")" = "755:0:0:directory"',
         '  test -z "$(find "$release" -xdev -type l -print -quit)"',
-        '  test "$(find "$release" -xdev -mindepth 1 -printf . | wc -c)" -eq 7',
+        '  test "$(find "$release" -xdev -mindepth 1 -printf . | wc -c)" -eq 8',
     ]
     for relative_path, (expected_sha, expected_mode) in sorted(expected_files.items()):
         installed_path = f'$release/{relative_path}'
@@ -1314,7 +1469,7 @@ def runtime_install_commands(
             'test "$(sha256sum -- "$TMP_DIR/runtime.tar.gz" | cut -d \' \' -f 1)" = "$RUNTIME_SHA"',
             (
                 "expected_archive_members=$(printf '%s\\n' "
-                "approval_observer.py checkpoint.py codex_project.py "
+                "approval_observer.py checkpoint.py codex_project.py landing.py "
                 "recipes/codex-headless.json "
                 "reconstruct.py runner.py | sort)"
             ),
@@ -1390,6 +1545,7 @@ def runtime_install_commands(
             'python3 "$ACTIVE_PATH/codex_project.py" --help >/dev/null',
             'python3 "$ACTIVE_PATH/approval_observer.py" --help >/dev/null',
             'python3 "$ACTIVE_PATH/checkpoint.py" --help >/dev/null',
+            'python3 "$ACTIVE_PATH/landing.py" --help >/dev/null',
             "restore_service_intent",
             'if [ -n "$LEGACY_DIR" ]; then',
             '  OBSOLETE_LEGACY_DIR="$LEGACY_DIR"',
@@ -1417,6 +1573,7 @@ def install_runtime_bundle(state: dict[str, Any]) -> dict[str, str]:
         "approval_observer.py": (sha256_file(APPROVAL_OBSERVER_PATH), "0755"),
         "reconstruct.py": (sha256_file(GUEST_DIR / "reconstruct.py"), "0755"),
         "checkpoint.py": (sha256_file(GUEST_DIR / "checkpoint.py"), "0755"),
+        "landing.py": (sha256_file(LANDING_PATH), "0755"),
         "recipes/codex-headless.json": (sha256_file(RECIPE_PATH), "0644"),
     }
     install_output = send_command(
@@ -1439,6 +1596,8 @@ def install_runtime_bundle(state: dict[str, Any]) -> dict[str, str]:
         "runnerSha256": expected_files["runner.py"][0],
         "codexProjectSha256": expected_files["codex_project.py"][0],
         "approvalObserverSha256": expected_files["approval_observer.py"][0],
+        "checkpointSha256": expected_files["checkpoint.py"][0],
+        "landingSha256": expected_files["landing.py"][0],
         "recipeSha256": expected_files["recipes/codex-headless.json"][0],
     }
 
@@ -1499,18 +1658,27 @@ def lift_off_reconstruct_commands(
     ]
 
 
-def head_s3_object(bucket: str, key: str) -> dict[str, Any] | None:
+def head_s3_object(
+    bucket: str, key: str, *, version_id: str | None = None
+) -> dict[str, Any] | None:
+    if version_id is not None and not valid_s3_version_id(version_id):
+        raise SpikeError("S3 checkpoint version identity is invalid")
+    arguments = [
+        "--bucket",
+        bucket,
+        "--key",
+        key,
+        "--checksum-mode",
+        "ENABLED",
+    ]
+    if version_id is not None:
+        arguments.extend(["--version-id", version_id])
     completed = run(
         [
             *aws_arguments(
                 "s3api",
                 "head-object",
-                "--bucket",
-                bucket,
-                "--key",
-                key,
-                "--checksum-mode",
-                "ENABLED",
+                *arguments,
             ),
             "--output",
             "json",
@@ -1540,10 +1708,13 @@ def ensure_s3_recovery_object(
     sha256: str,
     size: int,
     description: str,
+    expected_version_id: str | None = None,
 ) -> dict[str, Any]:
     expected_checksum = base64.b64encode(bytes.fromhex(sha256)).decode("ascii")
-    head = head_s3_object(bucket, key)
+    head = head_s3_object(bucket, key, version_id=expected_version_id)
     if head is None:
+        if expected_version_id is not None:
+            raise SpikeError(f"the exact {description} S3 version is missing")
         upload_raw = send_command(
             instance_id,
             [
@@ -1566,9 +1737,13 @@ def ensure_s3_recovery_object(
             upload = json.loads(upload_raw)
         except json.JSONDecodeError as exc:
             raise SpikeError(f"{description} upload did not return valid JSON") from exc
-        if upload.get("ChecksumSHA256") != expected_checksum:
+        uploaded_version_id = upload.get("VersionId")
+        if (
+            upload.get("ChecksumSHA256") != expected_checksum
+            or not valid_s3_version_id(uploaded_version_id)
+        ):
             raise SpikeError(f"{description} upload checksum did not match EBS")
-        head = head_s3_object(bucket, key)
+        head = head_s3_object(bucket, key, version_id=uploaded_version_id)
     if head is None:
         raise SpikeError(f"{description} was not readable after upload")
     metadata = head.get("Metadata", {})
@@ -1580,6 +1755,7 @@ def ensure_s3_recovery_object(
         or not isinstance(metadata, dict)
         or metadata.get("sha256") != sha256
         or not valid_s3_version_id(version_id)
+        or (expected_version_id is not None and version_id != expected_version_id)
     ):
         raise SpikeError(
             f"{description} failed size, encryption, checksum, or version checks"
@@ -1611,17 +1787,23 @@ def checkpoint_tree_entries(git_dir: Path, tree: str) -> list[dict[str, Any]]:
         content = run_bytes(
             ["git", f"--git-dir={git_dir}", "cat-file", "blob", object_id]
         ).stdout
-        entries.append(
-            {
-                "path": path,
-                "type": "symlink" if mode == "120000" else "file",
-                "sha256": hashlib.sha256(content).hexdigest(),
-                "size": len(content),
-                "executable": mode == "100755",
-                "gitMode": mode,
-                "gitObjectId": object_id,
-            }
-        )
+        entry = {
+            "path": path,
+            "type": "symlink" if mode == "120000" else "file",
+            "sha256": hashlib.sha256(content).hexdigest(),
+            "size": len(content),
+            "executable": mode == "100755",
+            "gitMode": mode,
+            "gitObjectId": object_id,
+        }
+        if mode == "120000":
+            try:
+                entry["target"] = content.decode("utf-8")
+            except UnicodeDecodeError as exc:
+                raise SpikeError(
+                    f"restored symbolic link target is not UTF-8: {path}"
+                ) from exc
+        entries.append(entry)
     return entries
 
 
@@ -1744,12 +1926,34 @@ def restore_test_checkpoint(
             object_id, separator, ref = line.partition(" ")
             if separator:
                 listed_heads[ref] = object_id
-        expected_heads = {
-            checkpoint["ref"]: checkpoint["commit"],
-            **{item["ref"]: item["objectId"] for item in checkpoint["historyRefs"]},
-        }
-        if any(listed_heads.get(ref) != object_id for ref, object_id in expected_heads.items()):
-            raise SpikeError("recovery bundle head map omitted preserved cloud Git history")
+        recovery_checkpoints = checkpoint.get("recoveryCheckpointRefs")
+        recovery_history = checkpoint.get(
+            "recoveryHistoryRefs", checkpoint["historyRefs"]
+        )
+        if recovery_checkpoints is not None:
+            expected_heads = {
+                item["ref"]: item["objectId"]
+                for item in [*recovery_checkpoints, *recovery_history]
+            }
+            if listed_heads != expected_heads:
+                raise SpikeError(
+                    "recovery bundle head map differs from its complete declared history"
+                )
+        else:
+            # Backward-compatible verification for already-durable proof
+            # checkpoints from the earlier spike runtime. Land checkpoints
+            # always carry the complete, exact map above.
+            expected_heads = {
+                checkpoint["ref"]: checkpoint["commit"],
+                **{item["ref"]: item["objectId"] for item in recovery_history},
+            }
+            if any(
+                listed_heads.get(ref) != object_id
+                for ref, object_id in expected_heads.items()
+            ):
+                raise SpikeError(
+                    "recovery bundle head map omitted preserved cloud Git history"
+                )
         run(
             [
                 "git",
@@ -1792,7 +1996,7 @@ def restore_test_checkpoint(
                 raise SpikeError(
                     f"restored evidence bytes did not match {evidence_path}"
                 )
-        for history in checkpoint["historyRefs"]:
+        for history in recovery_history:
             restored_object = run(
                 ["git", f"--git-dir={restore_repo}", "rev-parse", history["ref"]]
             ).stdout.strip()
@@ -4976,6 +5180,1279 @@ def cmd_readiness(args: argparse.Namespace) -> None:
     )
 
 
+def ensure_instance_online(instance_id: str) -> None:
+    if INSTANCE_ID_PATTERN.fullmatch(instance_id) is None:
+        raise SpikeError("cannot start an invalid EC2 instance identity")
+    response = aws_json("ec2", "describe-instances", "--instance-ids", instance_id)
+    reservations = response.get("Reservations", [])
+    instances = [
+        instance
+        for reservation in reservations
+        if isinstance(reservation, dict)
+        for instance in reservation.get("Instances", [])
+        if isinstance(instance, dict)
+    ]
+    if len(instances) != 1 or instances[0].get("InstanceId") != instance_id:
+        raise SpikeError("EC2 did not return the exact Lift instance")
+    state_name = instances[0].get("State", {}).get("Name")
+    if state_name == "stopping":
+        aws_raw(
+            "ec2", "wait", "instance-stopped", "--instance-ids", instance_id,
+            timeout=900,
+        )
+        state_name = "stopped"
+    if state_name == "stopped":
+        aws_json("ec2", "start-instances", "--instance-ids", instance_id)
+        aws_raw(
+            "ec2", "wait", "instance-running", "--instance-ids", instance_id,
+            timeout=600,
+        )
+        aws_raw(
+            "ec2", "wait", "instance-status-ok", "--instance-ids", instance_id,
+            timeout=900,
+        )
+    elif state_name == "pending":
+        aws_raw(
+            "ec2", "wait", "instance-running", "--instance-ids", instance_id,
+            timeout=600,
+        )
+        aws_raw(
+            "ec2", "wait", "instance-status-ok", "--instance-ids", instance_id,
+            timeout=900,
+        )
+    elif state_name != "running":
+        raise SpikeError(f"Lift EC2 instance cannot Land from state {state_name!r}")
+    wait_for_ssm(instance_id)
+
+
+def _checkpoint_ref_map(
+    value: Any, *, prefix: str, description: str
+) -> list[dict[str, str]]:
+    if not isinstance(value, list) or not value:
+        raise SpikeError(f"guest checkpoint returned invalid {description}")
+    result: list[dict[str, str]] = []
+    seen: set[str] = set()
+    for item in value:
+        if (
+            not isinstance(item, dict)
+            or not isinstance(item.get("ref"), str)
+            or not item["ref"].startswith(prefix)
+            or not valid_git_object_id(item.get("objectId"))
+            or item["ref"] in seen
+        ):
+            raise SpikeError(f"guest checkpoint returned invalid {description}")
+        seen.add(item["ref"])
+        result.append({"ref": item["ref"], "objectId": item["objectId"]})
+    return result
+
+
+def validate_land_guest_checkpoint(
+    *,
+    state: dict[str, Any],
+    outputs: dict[str, str],
+    checkpoint: Any,
+) -> dict[str, Any]:
+    if not isinstance(checkpoint, dict):
+        raise SpikeError("guest Land checkpoint returned a non-object")
+    workspace = state["workspace"]
+    land_state = workspace["land"]
+    run_id = state["runId"]
+    ordinal = land_state["ordinal"]
+    prefix = f"refs/lift/{WORKSPACE_ID}/sessions/{run_id}"
+    expected_ref = f"{prefix}/checkpoints/{ordinal:04d}-land-final"
+    all_checkpoints = workspace.get("checkpoints", [])
+    if (
+        not isinstance(all_checkpoints, list)
+        or any(not isinstance(item, dict) for item in all_checkpoints)
+        or [item.get("ordinal") for item in all_checkpoints]
+        != list(range(1, len(all_checkpoints) + 1))
+        or any(item.get("ordinal", 0) > ordinal for item in all_checkpoints)
+    ):
+        raise SpikeError("Land final checkpoint ordinal is not the next immutable slot")
+    prior_checkpoints = [
+        item for item in all_checkpoints if item.get("ordinal", 0) < ordinal
+    ]
+    existing_final = next(
+        (item for item in all_checkpoints if item.get("ordinal") == ordinal), None
+    )
+    if ordinal != len(prior_checkpoints) + 1 or (
+        existing_final is not None and existing_final.get("label") != "land-final"
+    ):
+        raise SpikeError("Land final checkpoint ordinal is not the next immutable slot")
+    expected_parent_ref = (
+        prior_checkpoints[-1]["ref"]
+        if prior_checkpoints
+        else workspace["baselineRef"]
+    )
+    expected_parent_commit = (
+        prior_checkpoints[-1]["commit"]
+        if prior_checkpoints
+        else workspace["baselineCommit"]
+    )
+    required_sha_fields = (
+        "bundleSha256",
+        "manifestSha256",
+        "manifestFileSha256",
+        "gitSnapshotSha256",
+    )
+    if any(
+        not isinstance(checkpoint.get(key), str)
+        or SHA256_PATTERN.fullmatch(checkpoint[key]) is None
+        for key in required_sha_fields
+    ):
+        raise SpikeError("guest Land checkpoint returned invalid SHA-256 identities")
+    if any(
+        not valid_git_object_id(checkpoint.get(key))
+        for key in ("commit", "tree", "cloudHead")
+    ):
+        raise SpikeError("guest Land checkpoint returned invalid Git identities")
+    if (
+        isinstance(checkpoint.get("bundleSize"), bool)
+        or not isinstance(checkpoint.get("bundleSize"), int)
+        or checkpoint["bundleSize"] <= 0
+        or isinstance(checkpoint.get("manifestSize"), bool)
+        or not isinstance(checkpoint.get("manifestSize"), int)
+        or checkpoint["manifestSize"] <= 0
+        or isinstance(checkpoint.get("fileCount"), bool)
+        or not isinstance(checkpoint.get("fileCount"), int)
+        or checkpoint["fileCount"] < 0
+    ):
+        raise SpikeError("guest Land checkpoint returned invalid recovery object sizes")
+    parents = checkpoint.get("parents")
+    if (
+        not isinstance(parents, list)
+        or len(parents) not in {1, 2}
+        or parents[0] != expected_parent_commit
+        or any(not valid_git_object_id(parent) for parent in parents)
+        or (
+            len(parents) == 2
+            and (
+                parents[1] != checkpoint["cloudHead"]
+                or parents[1] == expected_parent_commit
+            )
+        )
+    ):
+        raise SpikeError(
+            "guest Land checkpoint is not chained from the last durable checkpoint"
+        )
+    history_refs = _checkpoint_ref_map(
+        checkpoint.get("historyRefs"),
+        prefix=f"{prefix}/git-history/{ordinal:04d}/",
+        description="current cloud Git history",
+    )
+    recovery_history_refs = _checkpoint_ref_map(
+        checkpoint.get("recoveryHistoryRefs"),
+        prefix=f"{prefix}/git-history/",
+        description="complete cloud Git recovery history",
+    )
+    recovery_checkpoint_refs = _checkpoint_ref_map(
+        checkpoint.get("recoveryCheckpointRefs"),
+        prefix=f"{prefix}/",
+        description="complete checkpoint recovery history",
+    )
+    expected_recovery_checkpoints = [
+        {"ref": workspace["baselineRef"], "objectId": workspace["baselineCommit"]},
+        *[
+            {"ref": item["ref"], "objectId": item["commit"]}
+            for item in prior_checkpoints
+        ],
+        {"ref": expected_ref, "objectId": checkpoint["commit"]},
+    ]
+    if recovery_checkpoint_refs != expected_recovery_checkpoints:
+        raise SpikeError("Land recovery bundle checkpoint map is not complete and exact")
+    expected_recovery_history: list[dict[str, str]] = []
+    seen_history: set[str] = set()
+    for prior in prior_checkpoints:
+        for item in prior.get("recoveryHistoryRefs", prior.get("historyRefs", [])):
+            if item["ref"] not in seen_history:
+                expected_recovery_history.append(
+                    {"ref": item["ref"], "objectId": item["objectId"]}
+                )
+                seen_history.add(item["ref"])
+    for item in history_refs:
+        if item["ref"] not in seen_history:
+            expected_recovery_history.append(item)
+            seen_history.add(item["ref"])
+    if recovery_history_refs != expected_recovery_history:
+        raise SpikeError("Land recovery bundle Git history map is not complete and exact")
+
+    expected = {
+        "schemaVersion": 1,
+        "ordinal": ordinal,
+        "label": "land-final",
+        "ref": expected_ref,
+        "parentRef": expected_parent_ref,
+        "parentCommit": expected_parent_commit,
+        "bundlePath": (
+            f"/var/lib/lift/ledger/checkpoints/{run_id}/"
+            f"{checkpoint['bundleSha256']}.bundle"
+        ),
+        "manifestPath": (
+            f"/var/lib/lift/ledger/checkpoints/{run_id}/"
+            f"{ordinal:04d}-land-final-manifest.json"
+        ),
+        "workspaceVolumeId": outputs["WorkspaceVolumeId"],
+    }
+    if any(checkpoint.get(key) != value for key, value in expected.items()):
+        raise SpikeError("guest Land checkpoint identity differs from the requested final C")
+    try:
+        policy = fixture_policy_for_commit(
+            Path(workspace["ledgerPath"]), workspace["baselineCommit"]
+        )
+    except WorkspaceError as exc:
+        raise SpikeError("local baseline fixture policy is invalid") from exc
+    if checkpoint.get("fixturePolicy") != policy:
+        raise SpikeError("guest Land checkpoint fixture policy differs from baseline")
+    return {
+        **checkpoint,
+        "historyRefs": history_refs,
+        "recoveryHistoryRefs": recovery_history_refs,
+        "recoveryCheckpointRefs": recovery_checkpoint_refs,
+    }
+
+
+def verify_land_checkpoint_on_ebs(
+    *, instance_id: str, run_id: str, checkpoint: dict[str, Any]
+) -> None:
+    ledger_path = f"/var/lib/lift/ledger/{run_id}.git"
+    refs = [
+        *checkpoint["recoveryCheckpointRefs"],
+        *checkpoint["recoveryHistoryRefs"],
+    ]
+    commands = [
+        "set -euo pipefail",
+        f"test -f {shlex.quote(checkpoint['bundlePath'])}",
+        f"test ! -L {shlex.quote(checkpoint['bundlePath'])}",
+        f"test \"$(stat -c %a {shlex.quote(checkpoint['bundlePath'])})\" = 600",
+        f"test -f {shlex.quote(checkpoint['manifestPath'])}",
+        f"test ! -L {shlex.quote(checkpoint['manifestPath'])}",
+        f"test \"$(stat -c %a {shlex.quote(checkpoint['manifestPath'])})\" = 600",
+        (
+            f"test \"$(sha256sum {shlex.quote(checkpoint['bundlePath'])} | cut -d ' ' -f 1)\" "
+            f"= {shlex.quote(checkpoint['bundleSha256'])}"
+        ),
+        (
+            f"test \"$(sha256sum {shlex.quote(checkpoint['manifestPath'])} | cut -d ' ' -f 1)\" "
+            f"= {shlex.quote(checkpoint['manifestFileSha256'])}"
+        ),
+        *[
+            (
+                f"test \"$(git --git-dir={shlex.quote(ledger_path)} rev-parse "
+                f"{shlex.quote(item['ref'])})\" = {shlex.quote(item['objectId'])}"
+            )
+            for item in refs
+        ],
+        (
+            f"test \"$(findmnt -n -o MAJ:MIN -T {shlex.quote(checkpoint['bundlePath'])})\" "
+            f"= \"$(findmnt -n -o MAJ:MIN -T {shlex.quote(REMOTE_WORKSPACE)})\""
+        ),
+        (
+            f"test \"$(findmnt -n -o MAJ:MIN -T {shlex.quote(checkpoint['manifestPath'])})\" "
+            f"= \"$(findmnt -n -o MAJ:MIN -T {shlex.quote(REMOTE_WORKSPACE)})\""
+        ),
+        (
+            f"git --git-dir={shlex.quote(ledger_path)} bundle verify "
+            f"{shlex.quote(checkpoint['bundlePath'])} >/dev/null 2>&1"
+        ),
+        "printf '%s' verified",
+    ]
+    verified = send_command(
+        instance_id,
+        commands,
+        "Verify frozen final Land checkpoint on EBS",
+        timeout_seconds=180,
+    )
+    if not verified.splitlines() or verified.splitlines()[-1] != "verified":
+        raise SpikeError("frozen final Land checkpoint failed EBS verification")
+
+
+def make_land_checkpoint_durable(
+    *,
+    state: dict[str, Any],
+    outputs: dict[str, str],
+    checkpoint: dict[str, Any],
+) -> dict[str, Any]:
+    run_id = state["runId"]
+    instance_id = outputs["InstanceId"]
+    verify_land_checkpoint_on_ebs(
+        instance_id=instance_id, run_id=run_id, checkpoint=checkpoint
+    )
+    bucket = outputs["TransferBucketName"]
+    object_key = f"sessions/{run_id}/checkpoints/{checkpoint['bundleSha256']}.bundle"
+    manifest_object_key = (
+        f"sessions/{run_id}/checkpoints/"
+        f"{checkpoint['manifestFileSha256']}.manifest.json"
+    )
+    existing = state["workspace"]["land"].get("finalCheckpoint", {})
+    if existing and any(
+        existing.get(key) != checkpoint.get(key)
+        for key in (
+            "ref",
+            "commit",
+            "tree",
+            "bundleSha256",
+            "manifestFileSha256",
+        )
+    ):
+        raise SpikeError("saved final Land checkpoint differs from the frozen guest checkpoint")
+    bundle_head = ensure_s3_recovery_object(
+        instance_id=instance_id,
+        bucket=bucket,
+        key=object_key,
+        remote_path=checkpoint["bundlePath"],
+        sha256=checkpoint["bundleSha256"],
+        size=checkpoint["bundleSize"],
+        description="final Land Git recovery bundle",
+        expected_version_id=existing.get("s3VersionId"),
+    )
+    manifest_head = ensure_s3_recovery_object(
+        instance_id=instance_id,
+        bucket=bucket,
+        key=manifest_object_key,
+        remote_path=checkpoint["manifestPath"],
+        sha256=checkpoint["manifestFileSha256"],
+        size=checkpoint["manifestSize"],
+        description="final Land SHA-256 manifest",
+        expected_version_id=existing.get("s3ManifestVersionId"),
+    )
+    versioning = aws_json("s3api", "get-bucket-versioning", "--bucket", bucket)
+    if versioning.get("Status") != "Enabled":
+        raise SpikeError("S3 recovery bucket versioning is not enabled")
+    volume = aws_json(
+        "ec2", "describe-volumes", "--volume-ids", outputs["WorkspaceVolumeId"]
+    ).get("Volumes", [])
+    if (
+        len(volume) != 1
+        or volume[0].get("Encrypted") is not True
+        or volume[0].get("State") != "in-use"
+        or not any(
+            attachment.get("InstanceId") == instance_id
+            and attachment.get("State") == "attached"
+            for attachment in volume[0].get("Attachments", [])
+        )
+    ):
+        raise SpikeError("final Land checkpoint EBS volume is not encrypted and attached")
+    durable = {
+        **checkpoint,
+        "runId": run_id,
+        "workspaceId": WORKSPACE_ID,
+        "baselineRef": state["workspace"]["baselineRef"],
+        "baselineCommit": state["workspace"]["baselineCommit"],
+        "ebsBundlePath": checkpoint["bundlePath"],
+        "s3Bucket": bucket,
+        "s3ObjectKey": object_key,
+        "s3VersionId": bundle_head["VersionId"],
+        "s3ChecksumSHA256": base64.b64encode(
+            bytes.fromhex(checkpoint["bundleSha256"])
+        ).decode("ascii"),
+        "s3ManifestObjectKey": manifest_object_key,
+        "s3ManifestVersionId": manifest_head["VersionId"],
+        "s3ManifestChecksumSHA256": base64.b64encode(
+            bytes.fromhex(checkpoint["manifestFileSha256"])
+        ).decode("ascii"),
+    }
+    restore = restore_test_checkpoint(
+        run_id=run_id,
+        workspace_id=WORKSPACE_ID,
+        bucket=bucket,
+        bundle=bundle_head,
+        manifest_object=manifest_head,
+        checkpoint=durable,
+        expected_evidence={},
+    )
+    if not valid_restore_test(restore, durable):
+        raise SpikeError("final Land checkpoint restore test returned invalid evidence")
+    if existing:
+        saved_restore = existing.get("restoreTest")
+        if not valid_restore_test(saved_restore, existing):
+            raise SpikeError("saved final Land restore evidence is invalid")
+        if any(
+            saved_restore.get(key) != restore.get(key)
+            for key in RESTORE_TEST_KEYS
+            if key != "verifiedAt"
+        ):
+            raise SpikeError("final Land restore evidence changed on retry")
+        restore = saved_restore
+    durable["restoreTest"] = restore
+    return durable
+
+
+def guest_landing_action(
+    *,
+    instance_id: str,
+    run_id: str,
+    volume_id: str,
+    action: str,
+    record: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    if action not in {"freeze", "status", "record-checkpoint", "acknowledge"}:
+        raise SpikeError("invalid guest Land lifecycle action")
+    command = (
+        "python3 /opt/lift-spike/landing.py "
+        f"{shlex.quote(action)} "
+        f"--run-id {shlex.quote(run_id)} "
+        f"--workspace-id {shlex.quote(WORKSPACE_ID)} "
+        f"--expected-volume-id {shlex.quote(volume_id)}"
+    )
+    commands = ["set -euo pipefail", "umask 077"]
+    if record is not None:
+        if action not in {"record-checkpoint", "acknowledge"}:
+            raise SpikeError("guest Land record was supplied to an invalid action")
+        encoded = base64.b64encode(
+            (json.dumps(record, separators=(",", ":"), sort_keys=True) + "\n").encode(
+                "utf-8"
+            )
+        ).decode("ascii")
+        commands.extend(
+            [
+                'RECORD_DIR="/run/lift-spike-land"',
+                'install -d -o root -g root -m 0700 "$RECORD_DIR"',
+                'test ! -L "$RECORD_DIR"',
+                (
+                    'test "$(stat -c \'%a:%u:%g:%F\' -- "$RECORD_DIR")" '
+                    '= "700:0:0:directory"'
+                ),
+                'RECORD=$(mktemp "$RECORD_DIR/record.XXXXXX")',
+                "trap 'rm -f -- \"$RECORD\"' EXIT",
+                f"printf '%s' {shlex.quote(encoded)} | base64 --decode > \"$RECORD\"",
+                'chmod 0600 "$RECORD"',
+                f'{command} --record "$RECORD"',
+            ]
+        )
+    else:
+        commands.append(command)
+    raw = send_command(
+        instance_id,
+        commands,
+        f"Lift Land lifecycle: {action}",
+        timeout_seconds=300,
+    )
+    return parse_last_json(raw, f"guest Land {action}")
+
+
+def guest_land_checkpoint(
+    *, state: dict[str, Any], outputs: dict[str, str]
+) -> dict[str, Any]:
+    land_state = state["workspace"]["land"]
+    raw = send_command(
+        outputs["InstanceId"],
+        [
+            "set -euo pipefail",
+            (
+                "python3 /opt/lift-spike/checkpoint.py "
+                f"--run-id {shlex.quote(state['runId'])} "
+                f"--workspace-id {shlex.quote(WORKSPACE_ID)} "
+                f"--ordinal {land_state['ordinal']} --label land-final "
+                f"--expected-volume-id {shlex.quote(outputs['WorkspaceVolumeId'])} "
+                "--land-final"
+            ),
+        ],
+        "Seal immutable final Land checkpoint",
+        timeout_seconds=300,
+    )
+    return validate_land_guest_checkpoint(
+        state=state,
+        outputs=outputs,
+        checkpoint=parse_last_json(raw, "guest final Land checkpoint"),
+    )
+
+
+def guest_checkpoint_receipt(checkpoint: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "schemaVersion": 1,
+        "ordinal": checkpoint["ordinal"],
+        "label": "land-final",
+        "ref": checkpoint["ref"],
+        "commit": checkpoint["commit"],
+        "tree": checkpoint["tree"],
+        "parents": checkpoint["parents"],
+        "bundleSha256": checkpoint["bundleSha256"],
+        "manifestSha256": checkpoint["manifestSha256"],
+        "manifestFileSha256": checkpoint["manifestFileSha256"],
+        "s3Bucket": checkpoint["s3Bucket"],
+        "s3ObjectKey": checkpoint["s3ObjectKey"],
+        "s3VersionId": checkpoint["s3VersionId"],
+        "s3ManifestObjectKey": checkpoint["s3ManifestObjectKey"],
+        "s3ManifestVersionId": checkpoint["s3ManifestVersionId"],
+        "restoreTest": checkpoint["restoreTest"],
+    }
+
+
+def prepare_local_land_paths(state: dict[str, Any]) -> tuple[Path, Path, Path]:
+    run_dir = LOCAL_ROOT / "runs" / state["runId"]
+    workspace = Path(state["workspace"]["localPath"])
+    ledger = Path(state["workspace"]["ledgerPath"])
+    expected = {
+        run_dir: "local Lift run directory",
+        ledger: "local Lift-private ledger",
+        workspace: "original local workspace",
+    }
+    for path, description in expected.items():
+        try:
+            metadata = path.lstat()
+        except OSError as exc:
+            raise SpikeError(f"cannot inspect {description}: {path}") from exc
+        if path.is_symlink() or not stat.S_ISDIR(metadata.st_mode):
+            raise SpikeError(f"{description} is not a physical directory")
+        if path.resolve(strict=True) != path.absolute():
+            raise SpikeError(f"{description} has a non-canonical path")
+        if metadata.st_uid != os.geteuid():
+            raise SpikeError(f"{description} is not owned by the current user")
+    # Tighten the pre-Land spike's legacy 0755 private directories before C is
+    # downloaded. This is safe because they are Lift-owned fixture paths.
+    os.chmod(run_dir, 0o700)
+    os.chmod(ledger, 0o700)
+    land_root = run_dir / "land"
+    land_root.mkdir(mode=0o700, exist_ok=True)
+    if land_root.is_symlink() or not land_root.is_dir():
+        raise SpikeError("local Land state root is unsafe")
+    os.chmod(land_root, 0o700)
+    return workspace, ledger, land_root
+
+
+def validate_existing_local_land_paths(
+    state: dict[str, Any],
+) -> tuple[Path, Path, Path]:
+    """Read-only validation for an already-persisted local Land operation."""
+
+    run_dir = LOCAL_ROOT / "runs" / state["runId"]
+    workspace = Path(state["workspace"]["localPath"])
+    ledger = Path(state["workspace"]["ledgerPath"])
+    land_root = run_dir / "land"
+    expected = {
+        run_dir: ("local Lift run directory", True),
+        ledger: ("local Lift-private ledger", True),
+        workspace: ("original local workspace", False),
+        land_root: ("local Land state root", True),
+    }
+    for path, (description, private) in expected.items():
+        try:
+            metadata = path.lstat()
+        except OSError as exc:
+            raise SpikeError(f"cannot inspect {description}: {path}") from exc
+        if path.is_symlink() or not stat.S_ISDIR(metadata.st_mode):
+            raise SpikeError(f"{description} is not a physical directory")
+        if path.resolve(strict=True) != path.absolute():
+            raise SpikeError(f"{description} has a non-canonical path")
+        if metadata.st_uid != os.geteuid():
+            raise SpikeError(f"{description} is not owned by the current user")
+        if private and stat.S_IMODE(metadata.st_mode) != PRIVATE_DIRECTORY_MODE:
+            raise SpikeError(f"{description} must have mode 0700")
+    return workspace, ledger, land_root
+
+
+def final_local_land_manifest(
+    *,
+    state: dict[str, Any],
+    workspace: Path,
+    ledger: Path,
+    land_result: dict[str, Any],
+    approved_ignored: tuple[str, ...],
+) -> tuple[dict[str, Any], str]:
+    merge_commit = land_result.get("mergeResultCommit")
+    if not valid_git_object_id(merge_commit):
+        raise SpikeError("applied Land result has no valid merge commit")
+    merge_tree = run(
+        [
+            "git",
+            f"--git-dir={ledger}",
+            "show",
+            "-s",
+            "--format=%T",
+            merge_commit,
+        ]
+    ).stdout.strip()
+    if not valid_git_object_id(merge_tree):
+        raise SpikeError("applied Land result has no valid merge tree")
+    expected_entries = checkpoint_tree_entries(ledger, merge_tree)
+
+    def observed_entries() -> list[dict[str, Any]]:
+        try:
+            observed = content_manifest(workspace, approved_ignored)
+        except WorkspaceError as exc:
+            raise SpikeError(
+                "cannot verify the actual local workspace before acknowledgement"
+            ) from exc
+        raw_entries = observed.get("entries")
+        if not isinstance(raw_entries, list):
+            raise SpikeError("actual local workspace manifest is malformed")
+        projected: list[dict[str, Any]] = []
+        for raw in raw_entries:
+            if not isinstance(raw, dict):
+                raise SpikeError("actual local workspace manifest is malformed")
+            try:
+                entry = {
+                    key: raw[key]
+                    for key in ("path", "type", "sha256", "size", "executable")
+                }
+            except KeyError as exc:
+                raise SpikeError(
+                    "actual local workspace manifest is malformed"
+                ) from exc
+            if entry["type"] == "symlink":
+                entry["target"] = raw.get("target")
+            projected.append(entry)
+        return projected
+
+    expected_content = [
+        {
+            key: entry[key]
+            for key in ("path", "type", "sha256", "size", "executable")
+        }
+        | ({"target": entry["target"]} if entry["type"] == "symlink" else {})
+        for entry in expected_entries
+    ]
+    first_observed = observed_entries()
+    second_observed = observed_entries()
+    if first_observed != second_observed or second_observed != expected_content:
+        raise SpikeError(
+            "actual local workspace changed after the verified Land apply"
+        )
+
+    payload: dict[str, Any] = {
+        "schemaVersion": 1,
+        "runId": state["runId"],
+        "workspaceId": WORKSPACE_ID,
+        "mergeResultRef": land_result["mergeResultRef"],
+        "mergeResultCommit": merge_commit,
+        "mergeResultTree": merge_tree,
+        "entries": expected_entries,
+    }
+    canonical = json.dumps(payload, separators=(",", ":"), sort_keys=True).encode(
+        "utf-8"
+    )
+    manifest_sha = hashlib.sha256(canonical).hexdigest()
+    payload["manifestSha256"] = manifest_sha
+    return payload, manifest_sha
+
+
+def persist_land_progress(
+    state: dict[str, Any], phase: str, event_type: str, **details: Any
+) -> None:
+    if phase not in LAND_PHASES:
+        raise SpikeError("cannot persist an invalid Land phase")
+    state["workspace"]["land"]["phase"] = phase
+    state["revision"] += 1
+    atomic_state(state)
+    record_event(event_type, operationId=state["workspace"]["land"]["operationId"], **details)
+
+
+def stop_compute_after_land(state: dict[str, Any], outputs: dict[str, str]) -> dict[str, Any]:
+    verified = validated_stack_context(state)
+    if verified != outputs:
+        raise SpikeError("stack identity changed before Land compute cleanup")
+    instance_id = outputs["InstanceId"]
+    response = aws_json("ec2", "describe-instances", "--instance-ids", instance_id)
+    instances = [
+        instance
+        for reservation in response.get("Reservations", [])
+        if isinstance(reservation, dict)
+        for instance in reservation.get("Instances", [])
+        if isinstance(instance, dict)
+    ]
+    if len(instances) != 1 or instances[0].get("InstanceId") != instance_id:
+        raise SpikeError("EC2 cleanup did not return the exact Lift instance")
+    before = instances[0].get("State", {}).get("Name")
+    if before == "running":
+        aws_json("ec2", "stop-instances", "--instance-ids", instance_id)
+        aws_raw(
+            "ec2", "wait", "instance-stopped", "--instance-ids", instance_id,
+            timeout=900,
+        )
+    elif before not in {"stopped", "stopping"}:
+        raise SpikeError(f"cannot stop landed EC2 instance from state {before!r}")
+    elif before == "stopping":
+        aws_raw(
+            "ec2", "wait", "instance-stopped", "--instance-ids", instance_id,
+            timeout=900,
+        )
+    return {"instanceId": instance_id, "state": "stopped", "stoppedAt": now_iso()}
+
+
+def finish_land_after_guest_ack(
+    *,
+    state: dict[str, Any],
+    outputs: dict[str, str],
+    guest_ack: dict[str, Any],
+    keep_compute_running: bool,
+) -> None:
+    workspace_state = state["workspace"]
+    land_state = workspace_state["land"]
+    acknowledgement = land_state["acknowledgement"]
+    if guest_ack.get("acknowledgement") != acknowledgement:
+        raise SpikeError("guest acknowledgement differs from the durable local record")
+    land_state["guestAcknowledgement"] = guest_ack
+    workspace_state["lease"] = "LOCAL_PRIMARY"
+    state["connection"]["state"] = "LANDED"
+    state["readiness"]["safeToClose"] = False
+    if land_state.get("phase") != "COMPLETE":
+        persist_land_progress(
+            state,
+            "COMPLETE",
+            "land.complete",
+            acknowledgementSha256=acknowledgement["acknowledgementSha256"],
+        )
+
+    if keep_compute_running:
+        cleanup: dict[str, Any] = {"state": "running", "requested": False}
+        land_state["computeCleanup"] = cleanup
+        state["revision"] += 1
+        atomic_state(state)
+        record_event("land.compute_retained", instanceId=outputs["InstanceId"])
+    else:
+        try:
+            cleanup = stop_compute_after_land(state, outputs)
+            state["runtime"]["state"] = "STOPPED"
+            land_state["computeCleanup"] = cleanup
+            state["revision"] += 1
+            atomic_state(state)
+            record_event("land.compute_stopped", instanceId=outputs["InstanceId"])
+        except SpikeError as exc:
+            cleanup = {"state": "pending", "error": str(exc)}
+            land_state["computeCleanup"] = cleanup
+            state["revision"] += 1
+            atomic_state(state)
+            record_event("land.compute_cleanup_pending", error=str(exc))
+
+    final_checkpoint = land_state["finalCheckpoint"]
+    land_result = land_state["result"]
+    print(
+        json.dumps(
+            {
+                "outcome": "APPLIED",
+                "lease": "LOCAL_PRIMARY",
+                "cloudCheckpoint": final_checkpoint["ref"],
+                "cloudCommit": final_checkpoint["commit"],
+                "localMergeCommit": land_result["mergeResultCommit"],
+                "receiptCommit": land_result["receiptCommit"],
+                "acknowledgementSha256": acknowledgement[
+                    "acknowledgementSha256"
+                ],
+                "compute": cleanup,
+            },
+            indent=2,
+            sort_keys=True,
+        )
+    )
+
+
+def _cmd_land_locked(args: argparse.Namespace) -> None:
+    state = load_state()
+    workspace_state = state["workspace"]
+    existing_land = workspace_state.get("land")
+    if (
+        isinstance(existing_land, dict)
+        and existing_land.get("phase") == "COMPLETE"
+        and workspace_state.get("lease") == "LOCAL_PRIMARY"
+    ):
+        cleanup = existing_land.get("computeCleanup")
+        if args.keep_compute_running and not isinstance(cleanup, dict):
+            # COMPLETE can become durable immediately before the post-ack
+            # compute disposition. Preserve the explicit no-stop decision on
+            # a retry instead of returning an ambiguous null result.
+            cleanup = {"state": "running", "requested": False}
+            existing_land["computeCleanup"] = cleanup
+            state["revision"] += 1
+            atomic_state(state)
+            record_event("land.compute_retained")
+        elif (
+            not args.keep_compute_running
+            and (
+                not isinstance(cleanup, dict)
+                or cleanup.get("state") != "stopped"
+            )
+        ):
+            # A guest acknowledgement safely returns write ownership before
+            # infrastructure cleanup. If the first stop attempt failed or the
+            # controller crashed in that narrow window, a repeated Land must
+            # finish the cleanup rather than treating COMPLETE as terminal.
+            assert_identity(state)
+            outputs = validated_stack_context(state)
+            try:
+                cleanup = stop_compute_after_land(state, outputs)
+                state["runtime"]["state"] = "STOPPED"
+                existing_land["computeCleanup"] = cleanup
+                state["revision"] += 1
+                atomic_state(state)
+                record_event("land.compute_stopped", instanceId=outputs["InstanceId"])
+            except SpikeError as exc:
+                cleanup = {"state": "pending", "error": str(exc)}
+                existing_land["computeCleanup"] = cleanup
+                state["revision"] += 1
+                atomic_state(state)
+                record_event("land.compute_cleanup_pending", error=str(exc))
+        print(
+            json.dumps(
+                {
+                    "land": existing_land,
+                    "lease": "LOCAL_PRIMARY",
+                    "outcome": "APPLIED",
+                    "changed": False,
+                    "compute": cleanup,
+                },
+                indent=2,
+                sort_keys=True,
+            )
+        )
+        return
+    assert_identity(state)
+    outputs = validated_stack_context(state)
+    if workspace_state.get("cloudPath") != REMOTE_WORKSPACE:
+        raise SpikeError("the verified cloud workspace must exist before Land")
+    instance_id = outputs["InstanceId"]
+    if (
+        isinstance(existing_land, dict)
+        and existing_land.get("phase") == "NEEDS_REVIEW"
+    ):
+        workspace, ledger, land_root = validate_existing_local_land_paths(state)
+        final_checkpoint = existing_land.get("finalCheckpoint")
+        validated_checkpoint = validate_land_guest_checkpoint(
+            state=state,
+            outputs=outputs,
+            checkpoint=final_checkpoint,
+        )
+        if validated_checkpoint != final_checkpoint:
+            raise SpikeError("saved final Land checkpoint changed on conflict retry")
+        matching_checkpoints = [
+            checkpoint
+            for checkpoint in workspace_state.get("checkpoints", [])
+            if checkpoint.get("ordinal") == existing_land["ordinal"]
+        ]
+        if matching_checkpoints != [final_checkpoint]:
+            raise SpikeError(
+                "workspace checkpoint history lost the final conflict checkpoint"
+            )
+
+        guest_status = guest_landing_action(
+            instance_id=instance_id,
+            run_id=state["runId"],
+            volume_id=outputs["WorkspaceVolumeId"],
+            action="status",
+        )
+        expected_guest_status = {
+            "operationId": existing_land["operationId"],
+            "runId": state["runId"],
+            "workspaceId": WORKSPACE_ID,
+            "workspaceVolumeId": outputs["WorkspaceVolumeId"],
+            "baselineRef": workspace_state["baselineRef"],
+            "baselineCommit": workspace_state["baselineCommit"],
+            "phase": "FINAL_CHECKPOINT_RECORDED",
+            "lease": "LANDING",
+            "finalCheckpoint": guest_checkpoint_receipt(final_checkpoint),
+            "changed": False,
+        }
+        if any(
+            guest_status.get(key) != value
+            for key, value in expected_guest_status.items()
+        ):
+            raise SpikeError(
+                "guest conflict hold is not the exact live frozen Land state"
+            )
+
+        try:
+            fixture_policy = fixture_policy_for_commit(
+                ledger, workspace_state["baselineCommit"]
+            )
+        except WorkspaceError as exc:
+            raise SpikeError("local baseline fixture policy is invalid") from exc
+        saved_result = existing_land.get("result")
+        verified_result = validate_conflicted_land_fixture(
+            workspace=workspace,
+            ledger=ledger,
+            run_id=state["runId"],
+            workspace_id=WORKSPACE_ID,
+            baseline_ref=workspace_state["baselineRef"],
+            baseline_commit=workspace_state["baselineCommit"],
+            cloud_ref=final_checkpoint["ref"],
+            cloud_commit=final_checkpoint["commit"],
+            approved_ignored=(str(fixture_policy["approvedIgnoredPath"]),),
+            operation_root=land_root / "operation",
+        )
+        if (
+            not isinstance(saved_result, dict)
+            or saved_result.get("outcome") != "NEEDS_REVIEW"
+            or verified_result != saved_result
+        ):
+            raise SpikeError("saved local Land conflict result changed on retry")
+        print(
+            json.dumps(
+                {
+                    "land": existing_land,
+                    "lease": "LANDING",
+                    "outcome": "NEEDS_REVIEW",
+                    "changed": False,
+                },
+                indent=2,
+                sort_keys=True,
+            )
+        )
+        return
+
+    workspace, ledger, land_root = prepare_local_land_paths(state)
+    cloud_primary = workspace_state.get("lease") == "CLOUD_PRIMARY"
+    if cloud_primary:
+        # Land may need to replace/restart the active runner in order to add
+        # the EBS-backed ownership fence. Invalidate the old readiness proof
+        # before starting the instance or touching that service, while the
+        # cloud retains ownership until the new fence is installed.
+        invalidate_safe_to_close(
+            state, reset_phone_probe=False, reset_workload=True
+        )
+        state["connection"]["state"] = "LAND_RUNTIME_INSTALLING"
+        state["runtime"]["runtimeDeploymentState"] = "INSTALLING"
+        state["revision"] += 1
+        atomic_state(state)
+        record_event("land.runtime_install_started")
+    ensure_instance_online(instance_id)
+
+    if cloud_primary:
+        # Install the fenced runtime while the cloud still legitimately owns
+        # the workspace. Once local LANDING is persisted, runtime recovery must
+        # never attempt to restart the writer.
+        try:
+            runtime_install = install_runtime_bundle(state)
+        except Exception:
+            state["runtime"]["runtimeDeploymentState"] = "FAILED"
+            state["connection"]["state"] = "LAND_RUNTIME_INSTALL_FAILED"
+            state["revision"] += 1
+            atomic_state(state)
+            record_event("land.runtime_install_failed")
+            raise
+        state["runtime"].update(runtime_install)
+        state["runtime"]["runtimeDeploymentState"] = "ACTIVE"
+        state["revision"] += 1
+        atomic_state(state)
+        record_event(
+            "land.runtime_ready",
+            runtimeBundleSha256=runtime_install["runtimeBundleSha256"],
+        )
+        checkpoints = workspace_state.get("checkpoints", [])
+        if (
+            not isinstance(checkpoints, list)
+            or [item.get("ordinal") for item in checkpoints]
+            != list(range(1, len(checkpoints) + 1))
+        ):
+            raise SpikeError("workspace checkpoint history is not contiguous")
+        operation_id = f"{state['runId']}-land"
+        workspace_state["land"] = {
+            "schemaVersion": 1,
+            "operationId": operation_id,
+            "phase": "REQUESTED",
+            "ordinal": len(checkpoints) + 1,
+            "requestedAt": now_iso(),
+        }
+        workspace_state["lease"] = "LANDING"
+        state.setdefault("connection", {})["state"] = "LANDING"
+        state.setdefault("readiness", {})["safeToClose"] = False
+        persist_land_progress(state, "REQUESTED", "land.requested")
+    elif workspace_state.get("lease") != "LANDING" or not isinstance(
+        existing_land, dict
+    ):
+        raise SpikeError("Land requires the cloud ownership lease or a resumable operation")
+
+    land_state = workspace_state["land"]
+    if land_state["operationId"] != f"{state['runId']}-land":
+        raise SpikeError("Land operation identity differs from this session")
+
+    guest_freeze = guest_landing_action(
+        instance_id=instance_id,
+        run_id=state["runId"],
+        volume_id=outputs["WorkspaceVolumeId"],
+        action="freeze",
+    )
+    if guest_freeze.get("phase") == "ACKNOWLEDGED":
+        if (
+            land_state.get("phase") != "ACK_DURABLE"
+            or guest_freeze.get("lease") != "LOCAL_PRIMARY"
+            or not isinstance(land_state.get("acknowledgement"), dict)
+        ):
+            raise SpikeError(
+                "guest returned an acknowledged Land that local state cannot prove"
+            )
+        finish_land_after_guest_ack(
+            state=state,
+            outputs=outputs,
+            guest_ack=guest_freeze,
+            keep_compute_running=args.keep_compute_running,
+        )
+        return
+    if (
+        guest_freeze.get("operationId") != land_state["operationId"]
+        or guest_freeze.get("runId") != state["runId"]
+        or guest_freeze.get("workspaceId") != WORKSPACE_ID
+        or guest_freeze.get("workspaceVolumeId") != outputs["WorkspaceVolumeId"]
+        or guest_freeze.get("baselineCommit") != workspace_state["baselineCommit"]
+        or guest_freeze.get("lease") != "LANDING"
+        or guest_freeze.get("phase")
+        not in {"CLOUD_FROZEN", "FINAL_CHECKPOINT_RECORDED"}
+    ):
+        raise SpikeError("guest did not return the exact frozen Land lease")
+    land_state["guestFreeze"] = guest_freeze
+    if land_state["phase"] == "REQUESTED":
+        persist_land_progress(
+            state,
+            "CLOUD_FROZEN",
+            "land.cloud_frozen",
+            workspaceWriterUid=guest_freeze.get("freeze", {}).get(
+                "workspaceWriterUid"
+            ),
+        )
+
+    guest_checkpoint = land_state.get("guestCheckpoint")
+    if guest_checkpoint is None:
+        guest_checkpoint = guest_land_checkpoint(state=state, outputs=outputs)
+        land_state["guestCheckpoint"] = guest_checkpoint
+        state["revision"] += 1
+        atomic_state(state)
+        record_event(
+            "land.final_checkpoint_sealed",
+            checkpointRef=guest_checkpoint["ref"],
+            commit=guest_checkpoint["commit"],
+        )
+    else:
+        guest_checkpoint = validate_land_guest_checkpoint(
+            state=state, outputs=outputs, checkpoint=guest_checkpoint
+        )
+
+    final_checkpoint = make_land_checkpoint_durable(
+        state=state,
+        outputs=outputs,
+        checkpoint=guest_checkpoint,
+    )
+    saved_final = land_state.get("finalCheckpoint")
+    if saved_final is not None and saved_final != final_checkpoint:
+        raise SpikeError("durable final Land checkpoint changed on retry")
+    land_state["finalCheckpoint"] = final_checkpoint
+    checkpoints = workspace_state.setdefault("checkpoints", [])
+    existing_checkpoint = next(
+        (
+            item
+            for item in checkpoints
+            if item.get("ordinal") == final_checkpoint["ordinal"]
+        ),
+        None,
+    )
+    if existing_checkpoint is None:
+        checkpoints.append(final_checkpoint)
+    elif existing_checkpoint != final_checkpoint:
+        raise SpikeError("workspace final checkpoint record changed on retry")
+    if land_state["phase"] in {"CLOUD_FROZEN", "REQUESTED"}:
+        persist_land_progress(
+            state,
+            "FINAL_CHECKPOINT_DURABLE",
+            "land.final_checkpoint_durable",
+            checkpointRef=final_checkpoint["ref"],
+            commit=final_checkpoint["commit"],
+            s3VersionId=final_checkpoint["s3VersionId"],
+            s3ManifestVersionId=final_checkpoint["s3ManifestVersionId"],
+        )
+
+    guest_checkpoint_state = guest_landing_action(
+        instance_id=instance_id,
+        run_id=state["runId"],
+        volume_id=outputs["WorkspaceVolumeId"],
+        action="record-checkpoint",
+        record=guest_checkpoint_receipt(final_checkpoint),
+    )
+    if (
+        guest_checkpoint_state.get("phase") != "FINAL_CHECKPOINT_RECORDED"
+        or guest_checkpoint_state.get("lease") != "LANDING"
+        or guest_checkpoint_state.get("finalCheckpoint")
+        != guest_checkpoint_receipt(final_checkpoint)
+    ):
+        raise SpikeError("guest did not durably bind the exact final Land checkpoint")
+    land_state["guestCheckpointState"] = guest_checkpoint_state
+
+    recovery_root = LOCAL_ROOT / "runs" / state["runId"] / "evidence" / "recovery"
+    bundle_path = recovery_root / f"{final_checkpoint['bundleSha256']}.bundle"
+    manifest_path = (
+        recovery_root
+        / f"{final_checkpoint['manifestFileSha256']}.manifest.json"
+    )
+    imported = import_final_checkpoint(
+        ledger=ledger,
+        quarantine_root=land_root / "quarantine",
+        bundle_path=bundle_path,
+        manifest_path=manifest_path,
+        checkpoint=final_checkpoint,
+        run_id=state["runId"],
+        workspace_id=WORKSPACE_ID,
+        baseline_ref=workspace_state["baselineRef"],
+        baseline_commit=workspace_state["baselineCommit"],
+    )
+    saved_import = land_state.get("import")
+    if saved_import is not None and saved_import != imported:
+        raise SpikeError("verified final Land import changed on retry")
+    land_state["import"] = imported
+    if land_state["phase"] == "FINAL_CHECKPOINT_DURABLE":
+        persist_land_progress(
+            state,
+            "IMPORTED",
+            "land.final_checkpoint_imported",
+            importedRefsSha256=imported["importedRefsSha256"],
+        )
+
+    fixture_policy = fixture_policy_for_commit(
+        ledger, workspace_state["baselineCommit"]
+    )
+    land_result = land_fixture(
+        workspace=workspace,
+        ledger=ledger,
+        run_id=state["runId"],
+        workspace_id=WORKSPACE_ID,
+        baseline_ref=workspace_state["baselineRef"],
+        baseline_commit=workspace_state["baselineCommit"],
+        cloud_ref=final_checkpoint["ref"],
+        cloud_commit=final_checkpoint["commit"],
+        approved_ignored=(str(fixture_policy["approvedIgnoredPath"]),),
+        operation_root=land_root / "operation",
+    )
+    saved_result = land_state.get("result")
+    if saved_result is not None and saved_result != land_result:
+        raise SpikeError("local Land result changed on retry")
+    land_state["result"] = land_result
+    if land_result.get("outcome") == "NEEDS_REVIEW":
+        persist_land_progress(
+            state,
+            "NEEDS_REVIEW",
+            "land.needs_review",
+            conflictCount=len(land_result.get("conflicts", [])),
+        )
+        print(
+            json.dumps(
+                {
+                    "outcome": "NEEDS_REVIEW",
+                    "lease": "LANDING",
+                    "conflicts": land_result.get("conflicts", []),
+                    "conflictWorktree": land_result.get("conflictWorktree"),
+                    "cloudCheckpoint": final_checkpoint["ref"],
+                },
+                indent=2,
+                sort_keys=True,
+            )
+        )
+        return
+    if land_result.get("outcome") != "APPLIED":
+        raise SpikeError("local Land returned an unknown outcome")
+    if land_state["phase"] == "IMPORTED":
+        persist_land_progress(
+            state,
+            "RECONCILED",
+            "land.local_reconciled",
+            mergeResultCommit=land_result["mergeResultCommit"],
+            receiptCommit=land_result["receiptCommit"],
+        )
+
+    receipt_path = land_root / "operation" / "land-receipt.json"
+    try:
+        receipt = json.loads(
+            read_private_file(
+                receipt_path, maximum_size=MAX_LOCAL_STATE_BYTES
+            ).decode("utf-8")
+        )
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise SpikeError("local Land receipt is invalid") from exc
+    ack_path = land_root / "acknowledgement.json"
+    if private_file_exists(ack_path, maximum_size=MAX_LOCAL_STATE_BYTES):
+        try:
+            existing_ack = json.loads(
+                read_private_file(
+                    ack_path, maximum_size=MAX_LOCAL_STATE_BYTES
+                ).decode("utf-8")
+            )
+        except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+            raise SpikeError("saved local Land acknowledgement is invalid") from exc
+        if not isinstance(existing_ack, dict):
+            raise SpikeError("saved local Land acknowledgement is invalid")
+        acknowledgement = build_land_acknowledgement(
+            operation_id=land_state["operationId"],
+            checkpoint=final_checkpoint,
+            land_result=land_result,
+            receipt=receipt,
+            final_local_manifest=existing_ack.get("finalLocalManifest", {}),
+            final_local_manifest_sha256=existing_ack.get(
+                "finalLocalManifestSha256", ""
+            ),
+        )
+        if existing_ack != acknowledgement or (
+            isinstance(land_state.get("acknowledgement"), dict)
+            and land_state["acknowledgement"] != acknowledgement
+        ):
+            raise SpikeError("saved local Land acknowledgement changed on retry")
+    else:
+        if land_state.get("phase") == "ACK_DURABLE" or isinstance(
+            land_state.get("acknowledgement"), dict
+        ):
+            raise SpikeError("durable Land acknowledgement file is missing")
+        local_manifest, local_manifest_sha = final_local_land_manifest(
+            state=state,
+            workspace=workspace,
+            ledger=ledger,
+            land_result=land_result,
+            approved_ignored=(str(fixture_policy["approvedIgnoredPath"]),),
+        )
+        acknowledgement = build_land_acknowledgement(
+            operation_id=land_state["operationId"],
+            checkpoint=final_checkpoint,
+            land_result=land_result,
+            receipt=receipt,
+            final_local_manifest=local_manifest,
+            final_local_manifest_sha256=local_manifest_sha,
+        )
+        boundary_manifest, boundary_manifest_sha = final_local_land_manifest(
+            state=state,
+            workspace=workspace,
+            ledger=ledger,
+            land_result=land_result,
+            approved_ignored=(str(fixture_policy["approvedIgnoredPath"]),),
+        )
+        if (
+            boundary_manifest != local_manifest
+            or boundary_manifest_sha != local_manifest_sha
+        ):
+            raise SpikeError(
+                "actual local workspace changed before the Land cutover record"
+            )
+        # This atomic private file is the local cutover record. The cloud is
+        # already frozen, so any later local write is new post-Land work and a
+        # retry must reuse this exact received-state baseline rather than
+        # falsely requiring the live workspace to remain unchanged forever.
+        atomic_private_json(ack_path, acknowledgement)
+    land_state["acknowledgement"] = acknowledgement
+    if land_state["phase"] == "RECONCILED":
+        persist_land_progress(
+            state,
+            "ACK_DURABLE",
+            "land.acknowledgement_durable",
+            acknowledgementSha256=acknowledgement["acknowledgementSha256"],
+        )
+
+    guest_ack = guest_landing_action(
+        instance_id=instance_id,
+        run_id=state["runId"],
+        volume_id=outputs["WorkspaceVolumeId"],
+        action="acknowledge",
+        record=acknowledgement,
+    )
+    if (
+        guest_ack.get("phase") != "ACKNOWLEDGED"
+        or guest_ack.get("lease") != "LOCAL_PRIMARY"
+        or guest_ack.get("acknowledgement") != acknowledgement
+    ):
+        raise SpikeError("guest did not durably return the local ownership lease")
+    finish_land_after_guest_ack(
+        state=state,
+        outputs=outputs,
+        guest_ack=guest_ack,
+        keep_compute_running=args.keep_compute_running,
+    )
+
+
+def cmd_land(args: argparse.Namespace) -> None:
+    with land_controller_lock():
+        _cmd_land_locked(args)
+
+
 def cmd_checkpoint(args: argparse.Namespace) -> None:
     state = load_state()
     assert_identity(state)
@@ -5131,6 +6608,8 @@ def cmd_checkpoint(args: argparse.Namespace) -> None:
         raise SpikeError("guest checkpoint returned an invalid recovery object size or file count")
     parents = checkpoint.get("parents")
     history_refs = checkpoint.get("historyRefs")
+    recovery_history_refs = checkpoint.get("recoveryHistoryRefs", history_refs)
+    recovery_checkpoint_refs = checkpoint.get("recoveryCheckpointRefs")
     if (
         not isinstance(parents, list)
         or not parents
@@ -5145,6 +6624,26 @@ def cmd_checkpoint(args: argparse.Namespace) -> None:
             )
             or not valid_sha1(item.get("objectId"))
             for item in history_refs
+        )
+        or not isinstance(recovery_history_refs, list)
+        or any(
+            not isinstance(item, dict)
+            or not isinstance(item.get("ref"), str)
+            or not item["ref"].startswith(
+                f"refs/lift/{WORKSPACE_ID}/sessions/{run_id}/git-history/"
+            )
+            or not valid_sha1(item.get("objectId"))
+            for item in recovery_history_refs
+        )
+        or not isinstance(recovery_checkpoint_refs, list)
+        or any(
+            not isinstance(item, dict)
+            or not isinstance(item.get("ref"), str)
+            or not item["ref"].startswith(
+                f"refs/lift/{WORKSPACE_ID}/sessions/{run_id}/"
+            )
+            or not valid_sha1(item.get("objectId"))
+            for item in recovery_checkpoint_refs
         )
     ):
         raise SpikeError("guest checkpoint returned invalid preserved Git history")
@@ -5294,6 +6793,8 @@ def cmd_checkpoint(args: argparse.Namespace) -> None:
         "cloudHead": checkpoint["cloudHead"],
         "gitSnapshotSha256": checkpoint["gitSnapshotSha256"],
         "historyRefs": history_refs,
+        "recoveryHistoryRefs": recovery_history_refs,
+        "recoveryCheckpointRefs": recovery_checkpoint_refs,
         "fileCount": file_count,
         "manifestSha256": manifest_sha,
         "manifestFileSha256": manifest_file_sha,
@@ -5459,6 +6960,9 @@ def build_parser() -> argparse.ArgumentParser:
         "--evidence", choices=("phone", "laptop-off"), default="phone"
     )
     checkpoint.set_defaults(handler=cmd_checkpoint)
+    land = subparsers.add_parser("land")
+    land.add_argument("--keep-compute-running", action="store_true")
+    land.set_defaults(handler=cmd_land)
     return parser
 
 
@@ -5467,7 +6971,7 @@ def main() -> int:
     try:
         args.handler(args)
         return 0
-    except (SpikeError, WorkspaceError) as exc:
+    except (SpikeError, WorkspaceError, LandError, LiveLandError) as exc:
         print(json.dumps({"error": str(exc)}), file=sys.stderr)
         return 2
 

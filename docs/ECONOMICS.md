@@ -16,11 +16,11 @@ The pricing model should:
 
 All prices in this document are hypotheses to test, not launch commitments.
 
-The founder Phase 0 run produced no willingness-to-pay, retention, or production unit-economics evidence. It used one disposable workspace and manual operation, so its AWS usage cannot be treated as representative customer COGS. Pricing remains unchanged and unvalidated until the complete acknowledged loop works. See [`CURRENT_STATE.md`](CURRENT_STATE.md).
+The founder Phase 0 runs produced no willingness-to-pay, retention, or production unit-economics evidence. They used generated disposable workspaces and manual operation, so their AWS usage cannot be treated as representative customer COGS. Pricing remains unchanged and unvalidated until the complete acknowledged loop works. See [`CURRENT_STATE.md`](CURRENT_STATE.md).
 
 ## Value metric
 
-The best product value metric is a persistent personal workspace with successful handoffs. Raw tokens belong to the agent provider and should not be resold by Lift.
+The best product value metric is a persistent project workspace with successful handoffs, initially bought and operated by one person. Raw tokens belong to the agent provider and should not be resold by Lift.
 
 Possible billable dimensions are:
 

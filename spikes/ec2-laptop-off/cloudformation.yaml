@@ -283,7 +283,8 @@ Resources:
             useradd --uid 1001 --create-home --shell /bin/bash lift
           fi
           passwd --lock lift || true
-          loginctl enable-linger lift
+          loginctl disable-linger lift
+          systemctl mask --now user@1001.service
 
           ROOT_PARTITION=$(readlink -f "$(findmnt -n -o SOURCE /)")
           ROOT_PARENT=$(lsblk -ndo PKNAME "$ROOT_PARTITION")

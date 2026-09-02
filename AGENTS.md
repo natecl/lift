@@ -20,7 +20,9 @@ Before changing launch scope, pricing, analytics, support, or positioning, also 
 
 ## Mission
 
-Make a user's active coding workspace independent of their laptop. The first valuable experience is a safe local-to-cloud handoff that lets an existing coding agent continue while the laptop is closed.
+Give every software project a persistent cloud workspace where developers and user-chosen AI agents can work together from any device. Make the workspace independent of any one laptop, agent provider, conversation, participant, or compute instance.
+
+The first valuable experience remains a safe local-to-cloud handoff that lets the user close the laptop and launch or continue an existing coding agent from the provider's phone application. Persistent reuse, multi-agent execution, browser and computer capabilities, GitHub-created workspaces, and team participation extend that same workspace model; they do not replace the first complete handoff proof.
 
 ## Non-negotiable product constraints
 
@@ -49,7 +51,7 @@ If an implementation choice makes that loop slower, more confusing, or require i
 
 - **Workspace**: a project and the state required to work on it.
 - **Local workspace**: the source project currently on a user's computer.
-- **Lift workspace**: its persistent, isolated cloud continuation.
+- **Lift workspace**: the durable cloud workspace identity for a project, whether it began from a local folder, GitHub, or an empty template; a local continuation is one origin, not the product's permanent owner.
 - **State manifest**: the reviewable declaration of what Lift will reconstruct or transfer.
 - **Selective transplant**: copying required project state while excluding unrelated device state.
 - **Handoff**: changing where work is controlled without losing meaningful context.

@@ -6,9 +6,9 @@ Lift will execute powerful autonomous tools against source code and credentials 
 
 ## Current security posture
 
-The merged Phase 0 harness has strong founder-fixture controls: exact live AWS/resource identity binding, private no-follow local state, a marker-gated disposable capture, narrow physical workspace paths, a provider-blind unprivileged runner, root-owned passive approval observation, challenge-bound evidence, immutable checkpoint objects, and exact restore tests. These controls passed the 125-test local suite and one live founder phone run.
+The Phase 0 harness has strong founder-fixture controls: exact live AWS/resource identity binding, private no-follow local state, a baseline-pinned disposable capture policy, narrow physical workspace paths, a provider-blind unprivileged runner, root-owned passive approval observation, challenge-bound evidence, immutable checkpoint objects, exact restore tests, Git invocations isolated from ambient configuration and repo-local hooks, and a fixture Land transaction with an EBS-resident writer fence, exact-version quarantine import, canonical journal authority, preserved originals, rollback, conservative conflict handling, pinned returning-local history, exact acknowledgement, and Git-backed receipts. The full local suite passes; the provider path and separate clean and deliberate-conflict live founder-fixture Land transactions have also passed once each.
 
-It is not safe for external alpha use. The provider daemon and reusable credentials still share the `lift` Unix identity with the untrusted workspace workload; installer bytes are not signature/digest verified before root execution; the production transfer-manifest review does not exist; approval decision/responder attribution is unavailable; and network recovery, revoke, repetition, and complete Land remain untested. See [`CURRENT_STATE.md`](CURRENT_STATE.md) for the coherent current boundary.
+It is not safe for external alpha use. The provider daemon and reusable credentials still share the `lift` Unix identity with the untrusted workspace workload; installer bytes are not signature/digest verified before root execution; the production transfer-manifest review and conflict-resolution experience do not exist; approval decision/responder attribution is unavailable; and network recovery, revoke, repetition, broader interruption coverage, and automatic offline-helper continuation remain untested. See [`CURRENT_STATE.md`](CURRENT_STATE.md) for the coherent current boundary.
 
 ## Security objectives
 
@@ -18,6 +18,9 @@ It is not safe for external alpha use. The provider daemon and reusable credenti
 - Secrets do not appear in images, snapshots, logs, manifests, or source-control changes.
 - Local and cloud work remain recoverable after compromise or operator error.
 - No file leaves the local computer merely because Lift discovered it.
+- Every command and observed workspace mutation can be attributed to an authenticated human or agent task at the strongest level the runtime supports.
+- Shared-mode agent collisions are visible and recoverable rather than silently accepted.
+- Browser identity, provider identity, project files, and team membership remain separate security domains.
 
 ## Primary threats
 
@@ -40,6 +43,22 @@ Automatic discovery could upload private ignored files, `.env` files, credential
 ### Sync corruption
 
 Concurrent local and cloud edits or implementation bugs could destroy or overwrite work.
+
+### Concurrent agent corruption
+
+Two agents writing in one shared working directory can race, overwrite files, invalidate each other's assumptions, or leave services and dependencies in a contradictory state.
+
+### Browser and computer compromise
+
+An agent with an authenticated browser, visual computer control, broad network access, or a shared login can escape the intended project purpose, expose credentials, or perform consequential actions in external systems.
+
+### Cross-participant privilege confusion
+
+A teammate or agent can inherit workspace, secret, browser, or GitHub authority intended for another participant if membership and task capabilities are not explicit and independently revocable.
+
+### Untrusted external execution provider
+
+A provider-owned agent computer can retain an overbroad project copy, misstate isolation or provenance, keep task credentials after revocation, or return untrusted changes while appearing to be a first-class Lift participant. Lift cannot treat a provider's task mode, deletion claim, activity stream, or filesystem as authoritative merely because an integration exists.
 
 ### Public development services
 
@@ -100,6 +119,38 @@ The Phase 0 capture code is intentionally narrower than these product requiremen
 - Give the user an immediate stop button that terminates agent processes and revokes active secret grants.
 - Separate “agent completed the task” from “changes were merged or deployed.”
 
+### Multi-agent execution
+
+- Assign every agent task a stable identity, authenticated initiator, declared goal, execution mode, capability grants, and lifecycle record.
+- Support shared, isolated, and read-only modes as explicit policies rather than inferred behavior.
+- Before shared-mode writes, create a recoverable checkpoint and start an append-only task-attributed command and file-activity journal.
+- Detect overlapping observed writes and surface them immediately; do not claim arbitrary shell writes can always be prevented.
+- Preserve prior file versions and provide per-task pause and stop controls.
+- Treat Git worktrees and copy-on-write environments as stronger isolation options, not mandatory collaboration semantics.
+- Do not treat separate agent conversations, names, browser screens, or prompts as security boundaries.
+- Scope secrets, browser identities, network grants, and external actions independently from filesystem-sharing mode.
+
+### Browser and computer use
+
+- Use a dedicated project-scoped browser profile; never import the user's everyday cookie database or full authenticated personal profile.
+- Encrypt persistent browser state separately from project files and exclude it from Git, ordinary checkpoints, Land output, analytics, logs, and support bundles unless a purpose-built encrypted recovery path explicitly includes it.
+- Use a separate browser context or screen per concurrent agent by default.
+- Require explicit policy before agents share an authenticated browser identity.
+- Route login, passkey, two-factor, CAPTCHA, and other human-only steps through a short-lived authenticated takeover bound to the exact workspace and browser context.
+- Make consequential send, publish, purchase, delete, permission, production, and legal actions require approval even when the browser session is already authenticated.
+- Restrict downloads, uploads, clipboard transfer, local file bridging, and browser-to-control-plane network paths.
+- Keep browser automation and visible computer-control services off unauthenticated public networks.
+- Record nonsecret action provenance sufficient for incident reconstruction without recording passwords, tokens, personal messages, or unrestricted screenshots.
+
+### Team workspace access
+
+- Require explicit workspace membership and authenticated human identity.
+- Start with a small owner, member, and viewer model; deny access when repository and Lift permissions disagree until the conflict is resolved.
+- Prefer short-lived GitHub App credentials and derive repository access from the connected installation where appropriate.
+- Keep workspace membership, provider accounts, secrets, browser profiles, and task identities separately revocable.
+- Never make one person's provider or browser login implicitly available to every teammate.
+- Record invitation, membership, role, secret-grant, task-launch, approval, publication, and removal events.
+
 ### Lift authentication
 
 - Use short-lived web and desktop-helper sessions.
@@ -146,6 +197,20 @@ A checkpoint may become safe-to-close evidence only when it carries the active p
 
 That provider-private path is necessary but not sufficient isolation. The Phase 0 workload and provider daemon still run under the same `lift` Unix identity, which can write the approved provider-state paths and potentially race provider policy or approval state. Before any external private alpha, Lift must run the provider service and credential owner under a separate Unix identity or an equivalently narrow brokered boundary, keep reusable credentials encrypted and unreadable by the untrusted workspace workload, and verify snapshot exclusion, revocation, and recovery behavior. This service-identity and credential-isolation gate remains independent of the now-passed single-run phone-task and guarded live approval evidence.
 
+### Provider-owned execution computers
+
+Before a provider-owned computer may participate in a Lift task:
+
+- authenticate the provider, execution location, task, workspace, and requested mode with short-lived, independently revocable identity;
+- expose only a reviewed task-scoped state manifest and the minimum required secrets or capabilities, never the whole workspace vault by default;
+- advertise shared, isolated, or read-only behavior only when the provider interface can actually enforce and evidence that mode;
+- document provider retention and deletion behavior, expire access independently, and never equate Lift revocation with verified provider-side deletion;
+- treat returned files, activity, provenance, and completion claims as untrusted input, verify them in quarantine, and reconcile through a durable checkpoint without direct writes to canonical state;
+- preserve the prior canonical project revision and route ambiguity, missing provenance, conflicting changes, or unverifiable deletion to review;
+- keep provider-computer state and credentials out of ordinary Land output and make later local Land operate only on the accepted canonical Lift revision.
+
+No external agent-computer gateway is implemented today. These are future enablement gates, not current controls or a reason to expand the Phase 1 build.
+
 ### Cloud runtime identity binding
 
 Treat the local spike state as untrusted input. Before a deployed-runtime action, require its exact schema, revision, run and workspace IDs, named AWS profile and region, non-root `lift-admin` principal, canonical local and cloud paths, and identifiers with expected AWS formats. Bind the caller to the exact account, principal ARN, and immutable STS user ID so deleting and recreating a same-named IAM user cannot silently inherit authority. Re-read the live CloudFormation stack by the stored stack identity and proceed only when its exact stack ID and name, safe completed status, expected parameters, and outputs match the persisted record. Resolve the instance, workspace volume, and transfer bucket through `describe-stack-resources` and require their logical type, physical ID, and resource status to match as well. Any malformed, missing, duplicated, drifted, or cross-account binding must stop the operation before Systems Manager, EC2, EBS, or S3 is used.
@@ -164,7 +229,7 @@ Do not trust a cached base-image identifier during provisioning. Re-read its met
 - Do not treat local and cloud as simultaneous unrestricted primary writers in the first slice.
 - Freeze or stop cloud writers before producing the final Land checkpoint.
 - Download return changes outside the project, verify manifest signatures and content hashes, then recheck local state immediately before application.
-- Apply an unchanged-local delta with a recovery journal and per-file atomic replacement; retain a pre-apply recovery copy until acknowledgement.
+- Apply an unchanged-local delta with a recovery journal and per-file atomic cutover; move each original into private same-filesystem recovery before installing its replacement, then revalidate preserved bytes before verification and retain them until acknowledgement.
 - Validate path containment, symbolic links, file modes, case collisions, and platform-incompatible names before touching the local workspace.
 - If local state diverged, preserve both sides in a branch, worktree, or sibling copy and require explicit resolution for overlaps.
 - Do not delete the final cloud revision until a local helper acknowledges it or the user explicitly chooses another durable recovery destination.
@@ -173,6 +238,27 @@ Do not trust a cached base-image identifier during provisioning. Re-read its met
 - Never push a Lift ref, create a remote branch, or open a GitHub pull request without explicit authorization and a separate sanitized-content review.
 - Keep retained session-ledger objects encrypted, scoped to one user and workspace, and inaccessible to provider processes unless required for an explicit restore.
 - Delete retained session history only through an authenticated explicit user action and a documented deletion workflow; clean Land is not a deletion event.
+
+#### Implemented fixture Land boundary
+
+The fixture lifecycle now enforces these rules in code and local tests:
+
+- The root-owned guest record lives with the private ledger on the encrypted workspace volume and is bound to the exact run, workspace, baseline, and EBS volume identity. Its private directory and file metadata, canonical JSON, and monotonic phases are validated before use.
+- Freeze writes `FREEZE_REQUESTED` before stopping the generic workload. The runner takes the same lifecycle lock and must prove `CLOUD_PRIMARY` immediately before systemd activation, so a retry or reboot cannot reopen a writer after `LANDING` begins.
+- Final capture is permitted only after runner inactivity and the absence of another process using the declared workspace writer identity are verified. `--land-final` accepts no ordinary proof source and creates only the next immutable `land-final` checkpoint.
+- The final bundle and manifest are verified on EBS, written to a versioned private S3 bucket, read back by exact `VersionId`, and independently restored before local import. Local import occurs outside the project in a mode-`0700` quarantine; it verifies file metadata, hashes, the manifest self-hash and exact tree, baseline and parentage, fixture policy, bundle prerequisites, and the complete allowlisted ref map before publishing absent-or-identical private refs.
+- A local acknowledgement binds the exact S3 recovery versions, final cloud commit and tree, verified local manifest, merge result, and Git-backed Land receipt. The guest accepts that acknowledgement only for its already recorded final checkpoint. Only then may both records return ownership to `LOCAL_PRIMARY`.
+- A reconciliation conflict produces no acknowledgement, leaves the EBS fence and controller lease in `LANDING`, and preserves the untouched local workspace, exact final cloud state, and isolated conflict worktree. The current harness has no conflict-resolution continuation UI.
+- A cached conflict response is never trusted by itself: retry rebinds the live AWS identity and stack, probes the guest writer fence and exact final checkpoint, and validates the local result, merge record, lock, private refs, and conflict worktree without repairing absent evidence.
+- Compute shutdown is attempted only after acknowledgement and lease return. A cleanup failure is retained as pending rather than weakening or repeating the completed local return.
+
+Atomic pathname cutover plus final hash revalidation detects and recovers the tested local-write races, but it cannot eliminate a write through an already-open file descriptor after the final check. Production Land still requires desktop-helper writer quiescence or a filesystem snapshot boundary before this fixture mechanism can be promoted to arbitrary workspaces.
+
+On 2026-09-02, founder fixture run `p0-20260901083520-4fee` exercised the clean path live. It froze one `C` at checkpoint `0004-land-final`, commit `4bba13ff328a41dba0c898023e0d26cf3c31249c`, tree `df3bcde602bd34463dc70ffeb549bc4ae242d9ee`, and restored the exact versioned S3 bundle and manifest. The first attempt failed closed at controller phase `FINAL_CHECKPOINT_DURABLE` on a `/run` parent-directory mode mismatch. After the permission fix, the same operation reused the same `C`, applied merge `444b397a5ced2a0ba7d7b6e3b888f7a694523d9e`, retained receipt `da72f1ab6e81572dfc58501f1437af9835d1de1d`, and bound acknowledgement `d2e97376dadaa3e0aadd3af3c5c9545c28c9ec246b7deccfb382110b91e02bbc`; the guest reached `ACKNOWLEDGED`, the lease returned to `LOCAL_PRIMARY`, and compute stopped last.
+
+Fresh founder fixture run `p0-20260902183748-a7b1` separately exercised a deliberate same-file conflict live. The final `C` and its exact S3 versions passed independent restore, quarantine retained complete recovery refs, and the isolated merge retained all `B/L/C` stages. The controller stopped at `NEEDS_REVIEW` with the lease `LANDING`; the original local workspace and Git state remained exact, no acknowledgement or cleanup ran, and the cloud runner could not reactivate. Repeating Land returned `changed: false` with unchanged evidence.
+
+This verifies one clean founder-fixture execution, one deliberate-conflict execution, one specific safe resume point, and one idempotent conflict retry. It does not verify automatic offline-helper operation, user-facing conflict resolution, every interruption phase, repeated independent runs, arbitrary real-workspace transfer, or external-alpha safety.
 
 ### User-controlled agent manifests
 
@@ -203,9 +289,11 @@ Do not trust a cached base-image identifier during provisioning. Re-read its met
 
 ## Browser automation
 
-Authenticated cloud browser use is strategically important but excluded from the first coding-workspace alpha.
+Internet, browser, and computer use are required product-north-star capabilities but remain excluded from the first coding-workspace alpha until their separate security gates pass.
 
-When added, it should use a separate browser identity or user-mediated authorization rather than migrating the user's everyday cookie database. Browser state should be isolated per project, visibly scoped, revocable, and inaccessible to unrelated agents.
+Delivery should proceed from bounded outbound internet, to headless Chromium for development tests, to visible browser observation, to secure user takeover, persistent project-scoped authentication, and broader visual computer use. Each expansion requires threat-model review, credential-isolation tests, revocation, recovery, and cross-agent isolation evidence.
+
+When added, browser use must use a separate project identity or user-mediated authorization rather than migrating the user's everyday cookie database. Browser state must be visibly scoped, revocable, inaccessible to unrelated workspaces, and unavailable to agents without an explicit grant.
 
 ## Incident readiness
 
@@ -228,5 +316,7 @@ Perform a dedicated review before:
 - supporting production credentials;
 - allowing inbound webhooks to trigger agents;
 - adding team sharing;
+- enabling shared-mode simultaneous agent writers;
+- deriving workspace membership or credentials from GitHub;
 - storing agent transcripts long term;
 - moving from private alpha to public paid access.

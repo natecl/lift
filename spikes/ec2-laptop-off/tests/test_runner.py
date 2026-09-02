@@ -73,6 +73,7 @@ class DetachedRunnerTests(unittest.TestCase):
             ),
             mock.patch.object(runner, "HEALTH_PATH", self.root / "run" / "health.json"),
             mock.patch.object(runner, "STATE_PATH", self.root / "runner-state.json"),
+            mock.patch.object(runner, "UNIT_PATH", self.root / "lift-workload.service"),
         ]
         for patcher in self.patchers:
             patcher.start()
@@ -114,9 +115,18 @@ class DetachedRunnerTests(unittest.TestCase):
 
         self.assertIn("WantedBy=multi-user.target", unit)
         self.assertIn("Restart=on-failure", unit)
+        self.assertIn(
+            "ExecCondition=+/usr/bin/python3 /opt/lift-spike/runner.py gate "
+            f"--workspace {self.workspace}",
+            unit,
+        )
         self.assertIn("RuntimeDirectory=lift-spike-runner", unit)
         self.assertIn(
-            f"RequiresMountsFor={self.workspace} {self.persistent}", unit
+            (
+                f"RequiresMountsFor={self.workspace} {self.persistent} "
+                f"{runner.landing.LEDGER_ROOT}"
+            ),
+            unit,
         )
         self.assertIn(f"WorkingDirectory={self.workspace}", unit)
         self.assertIn(f"ReadWritePaths={self.workspace} {self.persistent}", unit)
@@ -125,6 +135,145 @@ class DetachedRunnerTests(unittest.TestCase):
         self.assertNotIn("/home/lift/Documents", unit)
         self.assertNotIn("ReadWritePaths=/home/lift ", unit)
         self.assertNotIn("ReadWritePaths=/ ", unit)
+
+    def test_start_holds_lifecycle_lock_through_systemd_activation(self) -> None:
+        self.recipe["processMode"] = "foreground"
+        self.recipe_path.write_text(json.dumps(self.recipe), encoding="utf-8")
+        events: list[str] = []
+        lock_held = False
+
+        @contextlib.contextmanager
+        def lifecycle_lock(workspace: Path):
+            nonlocal lock_held
+            self.assertEqual(self.workspace, workspace)
+            lock_held = True
+            events.append("lock-enter")
+            try:
+                yield
+            finally:
+                events.append("lock-exit")
+                lock_held = False
+
+        def require_cloud_primary(workspace: Path, *, allow_legacy_missing: bool):
+            self.assertTrue(lock_held)
+            self.assertEqual(self.workspace, workspace)
+            self.assertTrue(allow_legacy_missing)
+            events.append("lease")
+
+        def fake_systemctl(*arguments: str, check: bool = True):
+            self.assertTrue(lock_held)
+            events.append("systemctl:" + " ".join(arguments))
+            if arguments[0] == "is-active":
+                return subprocess.CompletedProcess([], 0, "", "")
+            if "--value" in arguments:
+                return subprocess.CompletedProcess([], 0, "123\n", "")
+            return subprocess.CompletedProcess([], 0, "", "")
+
+        with (
+            mock.patch.object(runner.os, "geteuid", return_value=0),
+            mock.patch.object(runner.landing, "lifecycle_lock", lifecycle_lock),
+            mock.patch.object(
+                runner.landing,
+                "require_cloud_primary",
+                side_effect=require_cloud_primary,
+            ),
+            mock.patch.object(runner, "systemctl", side_effect=fake_systemctl),
+        ):
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                runner.cmd_start(
+                    mock.Mock(recipe=str(self.recipe_path), workspace=str(self.workspace))
+                )
+
+        self.assertLess(events.index("lock-enter"), events.index("lease"))
+        self.assertLess(events.index("lease"), events.index("systemctl:enable --now lift-workload.service"))
+        self.assertLess(events.index("systemctl:enable --now lift-workload.service"), events.index("lock-exit"))
+        self.assertTrue(runner.STATE_PATH.is_file())
+        self.assertIn("ExecCondition=+", runner.UNIT_PATH.read_text(encoding="utf-8"))
+
+    def test_start_rejects_non_cloud_lease_before_any_lifecycle_mutation(self) -> None:
+        @contextlib.contextmanager
+        def lifecycle_lock(_: Path):
+            yield
+
+        with (
+            mock.patch.object(runner.os, "geteuid", return_value=0),
+            mock.patch.object(runner.landing, "lifecycle_lock", lifecycle_lock),
+            mock.patch.object(
+                runner.landing,
+                "require_cloud_primary",
+                side_effect=runner.landing.LandingError("lease is LANDING"),
+            ) as require,
+            mock.patch.object(runner, "systemctl") as systemctl,
+        ):
+            with self.assertRaisesRegex(runner.RunnerError, "rejected start"):
+                runner.cmd_start(
+                    mock.Mock(recipe=str(self.recipe_path), workspace=str(self.workspace))
+                )
+
+        require.assert_called_once_with(self.workspace, allow_legacy_missing=True)
+        systemctl.assert_not_called()
+        self.assertFalse(runner.STATE_PATH.exists())
+        self.assertFalse(runner.UNIT_PATH.exists())
+
+    def test_systemd_gate_is_strict_and_does_not_accept_missing_legacy_marker(self) -> None:
+        with (
+            mock.patch.object(runner.os, "geteuid", return_value=0),
+            mock.patch.object(runner.landing, "require_cloud_primary") as require,
+        ):
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                runner.cmd_gate(mock.Mock(workspace=str(self.workspace)))
+
+        require.assert_called_once_with(self.workspace, allow_legacy_missing=False)
+        self.assertEqual("CLOUD_PRIMARY", json.loads(output.getvalue())["lease"])
+
+    def test_active_legacy_unit_is_retrofitted_without_restarting_workload(self) -> None:
+        self.recipe["processMode"] = "foreground"
+        self.recipe_path.write_text(json.dumps(self.recipe), encoding="utf-8")
+        runner.atomic_json(
+            runner.STATE_PATH,
+            {
+                "processMode": "foreground",
+                "readinessConfigured": False,
+                "recipeId": self.recipe["id"],
+                "recipePath": str(self.recipe_path),
+                "recipeSha256": runner.recipe_hash(self.recipe_path),
+                "workspace": str(self.workspace),
+            },
+        )
+        runner.UNIT_PATH.write_text("legacy unit without a lease gate\n", encoding="utf-8")
+        calls: list[tuple[str, ...]] = []
+
+        @contextlib.contextmanager
+        def lifecycle_lock(_: Path):
+            yield
+
+        def fake_systemctl(*arguments: str, check: bool = True):
+            calls.append(arguments)
+            if arguments[0] == "is-active":
+                return subprocess.CompletedProcess([], 0, "", "")
+            if "--value" in arguments:
+                return subprocess.CompletedProcess([], 0, "123\n", "")
+            return subprocess.CompletedProcess([], 0, "", "")
+
+        with (
+            mock.patch.object(runner.os, "geteuid", return_value=0),
+            mock.patch.object(runner.landing, "lifecycle_lock", lifecycle_lock),
+            mock.patch.object(runner.landing, "require_cloud_primary"),
+            mock.patch.object(runner, "systemctl", side_effect=fake_systemctl),
+        ):
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                runner.cmd_start(
+                    mock.Mock(recipe=str(self.recipe_path), workspace=str(self.workspace))
+                )
+
+        self.assertIn(("daemon-reload",), calls)
+        self.assertIn(("enable", runner.UNIT_NAME), calls)
+        self.assertNotIn(("enable", "--now", runner.UNIT_NAME), calls)
+        self.assertIn("ExecCondition=+", runner.UNIT_PATH.read_text(encoding="utf-8"))
+        self.assertTrue(json.loads(output.getvalue())["changed"])
 
     def test_detached_supervisor_runs_start_health_and_stop(self) -> None:
         stop_event = threading.Event()

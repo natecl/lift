@@ -23,6 +23,8 @@ import threading
 import time
 from typing import Any
 
+import landing
+
 
 UNIT_NAME = "lift-workload.service"
 UNIT_PATH = Path("/etc/systemd/system") / UNIT_NAME
@@ -321,7 +323,13 @@ def unit_text(recipe_path: Path, workspace: Path, recipe: dict[str, Any]) -> str
             + 5
         )
     writable_paths = [str(workspace), *recipe["persistentPaths"]]
-    encoded_paths = " ".join(systemd_path(item) for item in writable_paths)
+    required_mount_paths = [*writable_paths, str(landing.LEDGER_ROOT)]
+    encoded_required_mounts = " ".join(
+        systemd_path(item) for item in required_mount_paths
+    )
+    encoded_writable_paths = " ".join(
+        systemd_path(item) for item in writable_paths
+    )
     encoded_recipe = systemd_path(str(recipe_path))
     encoded_workspace = systemd_path(str(workspace))
     return "\n".join(
@@ -330,7 +338,7 @@ def unit_text(recipe_path: Path, workspace: Path, recipe: dict[str, Any]) -> str
             "Description=Lift provider-blind remote workload",
             "After=network-online.target",
             "Wants=network-online.target",
-            f"RequiresMountsFor={encoded_paths}",
+            f"RequiresMountsFor={encoded_required_mounts}",
             "",
             "[Service]",
             "Type=simple",
@@ -339,6 +347,12 @@ def unit_text(recipe_path: Path, workspace: Path, recipe: dict[str, Any]) -> str
             "Environment=HOME=/home/lift",
             "Environment=PATH=/home/lift/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
             f"WorkingDirectory={encoded_workspace}",
+            # The unit is reboot-enabled, so every systemd activation must
+            # enforce the authoritative EBS-backed ownership lease. The `+`
+            # prefix runs only this read-only condition as root; the workload
+            # itself still runs as the unprivileged `lift` user below.
+            "ExecCondition=+/usr/bin/python3 /opt/lift-spike/runner.py gate "
+            f"--workspace {encoded_workspace}",
             "ExecStart=/usr/bin/python3 /opt/lift-spike/runner.py serve "
             f"--recipe {encoded_recipe} --workspace {encoded_workspace}",
             f"Restart={restart}",
@@ -352,7 +366,7 @@ def unit_text(recipe_path: Path, workspace: Path, recipe: dict[str, Any]) -> str
             "PrivateTmp=true",
             "ProtectSystem=strict",
             "ProtectHome=read-only",
-            f"ReadWritePaths={encoded_paths}",
+            f"ReadWritePaths={encoded_writable_paths}",
             "IPAddressDeny=169.254.169.254/32",
             "IPAddressDeny=fd00:ec2::254/128",
             "ProtectKernelTunables=true",
@@ -672,12 +686,16 @@ def wait_for_detached_health(requested: dict[str, Any]) -> dict[str, Any]:
     raise RunnerError(f"detached workload did not become healthy: {latest}")
 
 
-def cmd_start(args: argparse.Namespace) -> None:
-    if os.geteuid() != 0:
-        raise RunnerError("start must run as root")
-    recipe_path = Path(args.recipe).resolve(strict=True)
-    recipe = validated_recipe(recipe_path)
-    workspace = validated_workspace(args.workspace)
+def _write_unit(path: Path, contents: str) -> None:
+    path.write_text(contents, encoding="utf-8")
+    os.chmod(path, 0o644)
+
+
+def _start_with_cloud_lease(
+    recipe_path: Path,
+    recipe: dict[str, Any],
+    workspace: Path,
+) -> None:
     requested = {
         "processMode": recipe.get("processMode", "foreground"),
         "readinessConfigured": "readiness" in recipe,
@@ -698,10 +716,24 @@ def cmd_start(args: argparse.Namespace) -> None:
             }
         )
 
+    desired_unit = unit_text(recipe_path, workspace, recipe)
     if STATE_PATH.exists():
         existing = read_json(STATE_PATH)
         active = systemctl("is-active", UNIT_NAME, check=False).returncode == 0
         if active and all(existing.get(key) == value for key, value in requested.items()):
+            # Runtime upgrades must retrofit the reboot fence even when the
+            # same workload is already healthy. Reloading the unit does not
+            # interrupt the active process, but protects its next activation.
+            unit_current = None
+            try:
+                unit_current = UNIT_PATH.read_text(encoding="utf-8")
+            except FileNotFoundError:
+                pass
+            unit_changed = unit_current != desired_unit
+            if unit_changed:
+                _write_unit(UNIT_PATH, desired_unit)
+                systemctl("daemon-reload")
+                systemctl("enable", UNIT_NAME)
             health = (
                 wait_for_detached_health(requested)
                 if requested["processMode"] == "detached"
@@ -709,7 +741,12 @@ def cmd_start(args: argparse.Namespace) -> None:
             )
             print(
                 json.dumps(
-                    {**requested, "state": "active", "changed": False, "health": health},
+                    {
+                        **requested,
+                        "state": "active",
+                        "changed": unit_changed,
+                        "health": health,
+                    },
                     sort_keys=True,
                 )
             )
@@ -719,8 +756,7 @@ def cmd_start(args: argparse.Namespace) -> None:
 
     if HEALTH_PATH.exists():
         HEALTH_PATH.unlink()
-    UNIT_PATH.write_text(unit_text(recipe_path, workspace, recipe), encoding="utf-8")
-    os.chmod(UNIT_PATH, 0o644)
+    _write_unit(UNIT_PATH, desired_unit)
     atomic_json(STATE_PATH, requested)
     systemctl("daemon-reload")
     systemctl("enable", "--now", UNIT_NAME)
@@ -738,6 +774,43 @@ def cmd_start(args: argparse.Namespace) -> None:
             sort_keys=True,
         )
     )
+
+
+def cmd_start(args: argparse.Namespace) -> None:
+    if os.geteuid() != 0:
+        raise RunnerError("start must run as root")
+    recipe_path = Path(args.recipe).resolve(strict=True)
+    recipe = validated_recipe(recipe_path)
+    workspace = validated_workspace(args.workspace)
+    try:
+        # This lock is shared with Land and is acquired immediately before the
+        # runner inspects or mutates lifecycle state. A missing marker is
+        # accepted only here so the one pre-Land spike workspace can be
+        # migrated explicitly by landing.require_cloud_primary().
+        with landing.lifecycle_lock(workspace):
+            landing.require_cloud_primary(workspace, allow_legacy_missing=True)
+            _start_with_cloud_lease(recipe_path, recipe, workspace)
+    except landing.LandingError as exc:
+        raise RunnerError(f"workspace ownership lease rejected start: {exc}") from exc
+
+
+def cmd_gate(args: argparse.Namespace) -> None:
+    """Fail closed unless systemd may activate the cloud writer.
+
+    This deliberately does not acquire the lifecycle lock: cmd_start holds the
+    lock while waiting for `systemctl --now`, whose ExecCondition invokes this
+    command. The lease marker itself is atomically replaced, and Land stops and
+    verifies the unit after changing CLOUD_PRIMARY to LANDING.
+    """
+
+    if os.geteuid() != 0:
+        raise RunnerError("gate must run as root")
+    workspace = validated_workspace(args.workspace)
+    try:
+        landing.require_cloud_primary(workspace, allow_legacy_missing=False)
+    except landing.LandingError as exc:
+        raise RunnerError(f"workspace ownership lease rejected activation: {exc}") from exc
+    print(json.dumps({"lease": "CLOUD_PRIMARY", "workspace": str(workspace)}, sort_keys=True))
 
 
 def cmd_stop(_: argparse.Namespace) -> None:
@@ -811,6 +884,9 @@ def build_parser() -> argparse.ArgumentParser:
         subparser.add_argument("--recipe", required=True)
         subparser.add_argument("--workspace", required=True)
         subparser.set_defaults(handler=handler)
+    gate = subparsers.add_parser("gate")
+    gate.add_argument("--workspace", required=True)
+    gate.set_defaults(handler=cmd_gate)
     stop = subparsers.add_parser("stop")
     stop.set_defaults(handler=cmd_stop)
     status = subparsers.add_parser("status")

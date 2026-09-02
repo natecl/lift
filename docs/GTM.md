@@ -10,21 +10,29 @@ Lift should not launch as a broad “cloud computer for everyone.” The initial
 
 > Workspace handoff for coding agents.
 
-The current repository has one founder-only provider-path feasibility pass on a generated fixture, not a complete product loop or market validation. Until real-workspace capture, complete Land, isolation, recovery, and no-terminal promotion gates pass, the laptop-off language below is target positioning for interviews and prototypes—not a supported public product claim. See [`CURRENT_STATE.md`](CURRENT_STATE.md).
+The product category it should grow into is:
+
+> The cloud workspace for developers and AI agents.
+
+The current repository has founder-only provider-path feasibility plus one live clean and one live conflicted Land round trip on generated disposable fixtures, not a customer product loop or market validation. The clean 2026-09-02 run carried exact immutable `0004-land-final` from real EC2/EBS through versioned S3 back to the Mac, applied reconciliation, acknowledged it on the guest, returned ownership to `LOCAL_PRIMARY`, and stopped EC2. Fresh run `p0-20260902183748-a7b1` deliberately diverged the same file, restore-tested durable `0002-land-final`, stopped at `NEEDS_REVIEW` with ownership `LANDING`, left local state untouched and both sides recoverable, kept the runner fenced and compute retained, and replayed with `changed: false`. Until arbitrary real-workspace capture, customer UI/helper, automatic offline-helper wake, conflict-resolution UI, provider-service credential isolation, production isolation, network recovery and revocation, broader repetition and interruption coverage, and the no-terminal journey pass, the laptop-off language below is target positioning for interviews and prototypes—not a supported public product claim. See [`CURRENT_STATE.md`](CURRENT_STATE.md).
 
 ## Positioning statement
 
-For agent-native solo builders who need to leave while a coding agent is working locally, Lift moves the exact active workspace into a persistent cloud computer and lets them continue through the provider application already on their phone. Unlike VPSs, cloud IDEs, and generic remote access, Lift carries dirty local state into the cloud and safely merges the result back.
+For agent-native developers who need projects and agents to remain available beyond any laptop, Lift provides a persistent, project-centric cloud workspace that can begin locally or from GitHub and can host user-chosen agents from any device. Unlike provider-specific cloud computers, Lift keeps the workspace independent of one agent ecosystem and preserves safe local continuity.
 
 ## Message hierarchy
 
 ### Primary promise
 
-> Close your laptop. Your agent keeps building.
+> The cloud workspace for developers and AI agents.
+
+### Hero proof
+
+> Close your laptop. Launch your agents from anywhere.
 
 ### Mechanism
 
-> Click Lift Off. Lift moves the exact project into the cloud and connects the coding agent you already use.
+> Start from this computer or GitHub. Lift keeps the functioning project in the cloud and connects the coding agents you already use.
 
 ### Trust proof
 
@@ -32,7 +40,7 @@ For agent-native solo builders who need to leave while a coding agent is working
 
 ### Boundary
 
-> Lift is the computer underneath your agent, not another agent or mobile chat app.
+> Lift is the workspace underneath your agents and team, not another agent, Git host, or mobile IDE.
 
 ## Wedge and vision
 
@@ -43,9 +51,9 @@ Lead with the narrow wedge:
 - existing agent application on the phone;
 - safe return to the same local folder.
 
-Reveal the larger vision only after the wedge is understood:
+Reveal the larger vision after the wedge is understood:
 
-> Your laptop becomes one optional interface to an always-available personal computer in the cloud.
+> Every project gets a permanent cloud workspace where developers and different agents can work together from any device.
 
 Starting with the vision alone risks sounding like remote desktop, a generic VPS, or science fiction.
 
@@ -59,7 +67,7 @@ Headline:
 
 Subhead:
 
-> Lift moves your exact local coding workspace into a persistent cloud computer, connects the agent you already use, and safely brings every change back.
+> Lift moves your exact local project into a persistent cloud workspace, lets you launch the agents you already use from your phone, and safely brings every change back.
 
 Primary action:
 
@@ -96,10 +104,11 @@ Before:
 
 After:
 
-- one persistent workspace;
+- one persistent project workspace;
 - existing provider interface;
 - laptop fully off when supported;
 - verified PR-like return.
+- new agent tasks launched from the phone;
 
 ### Trust section
 
@@ -151,6 +160,7 @@ Collect only fields that improve selection:
 
 - name and email;
 - primary coding agent;
+- other provider-owned cloud-agent workspaces used in the last 30 days and whether one project spans multiple providers;
 - local operating system;
 - how often they leave a laptop awake for agents;
 - current workaround;
@@ -278,11 +288,15 @@ Git push omits uncommitted, untracked, approved ignored, environment, and task s
 
 ### “Can I trust the merge?”
 
-Lift merges private baseline, cloud, and returning-local snapshots in an isolated worktree. It applies a clean result only after verification and preserves both copies on conflict.
+Lift merges private baseline, cloud, and returning-local snapshots in an isolated worktree. It applies a clean result only after verification and preserves both copies on conflict. Separate founder-operated generated-fixture runs have now exercised each branch once; that is mechanism evidence, not yet a customer-facing trust claim.
 
 ### “Why pay if my agent provider adds this?”
 
-Lift must earn payment through cross-provider workspace ownership and local continuity. If first-party providers fully solve those jobs, the wedge must change.
+Lift must earn payment through project-centric workspace ownership, heterogeneous agents, local and GitHub origins, collaboration, browser capabilities, and safe continuity. If first-party providers fully solve those jobs across agents, the wedge must change.
+
+### “Is this Grok Bot with a different name?”
+
+Grok Bot gives one user a computer for its Bots. Lift gives one software project a workspace for its developers and user-chosen agents, with configurable shared or isolated work, GitHub integration, provenance, and recoverable local continuity.
 
 ## Messaging constraints
 
@@ -306,6 +320,10 @@ Trustworthy limitations are part of the brand.
 - first-Lift-Off-to-acknowledged-Land conversion;
 - percentage who physically close the laptop;
 - seven- and 28-day repeat handoff rate;
+- mobile-launched new agent tasks while the laptop is offline;
+- workspace reuse across multiple days without reconstruction;
+- retained workspaces using more than one agent;
+- team invitations and repeated shared-workspace use after the team experiment begins;
 - successful-user-to-paid conversion;
 - successful-user referral rate;
 - acquisition source by retained user, not signup;

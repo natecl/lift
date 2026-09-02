@@ -8,7 +8,7 @@ Lift should not implement a Codex adapter, Claude adapter, or universal agent pr
 
 Lift should implement one provider-blind remote workload runner. A reviewed connection recipe installs and starts a long-lived command inside the Lift workspace. If that command implements native remote control, the provider connects it to the provider's existing mobile or web client. Supported recipes are presented through Lift's Connections tab rather than exposed as terminal configuration.
 
-The current merged implementation and the boundary between passed founder evidence and target product behavior are summarized in [`CURRENT_STATE.md`](CURRENT_STATE.md).
+The current repository implementation and the boundary between merged code, active development, passed founder evidence, and target product behavior are summarized in [`CURRENT_STATE.md`](CURRENT_STATE.md).
 
 ```text
 Lift workspace and generic process supervisor
@@ -88,6 +88,16 @@ type RemoteWorkloadRunner = {
   stop(handle: ProcessHandle): Promise<void>;
 };
 ```
+
+### Multiple agent tasks
+
+The contract remains provider-blind when Lift runs several agents. One agent task creates one workload instance and process handle; the workspace task manager, not the runner, decides how those instances relate to files and to one another.
+
+- In **shared** mode, several workload instances use the same working directory. No Git worktree is required. Lift adds a pre-run checkpoint, task identity, observable command and file attribution, overlap detection, pause and stop controls, and preserved recovery versions.
+- In **isolated** mode, each instance receives a worktree, branch, overlay, or copy-on-write root and later produces an explicit integration result.
+- In **read-only** mode, the runtime enforces nonmutation rather than trusting an instruction in the prompt.
+
+The runner never treats an agent as a permanent owner of a worktree. Execution mode is selected per task or workspace policy, and all workload instances remain subordinate to the cloud workspace ownership lease and Land writer fence.
 
 Provider conversation traffic remains opaque. For a first-class connection, the connection recipe presents provider-owned browser or device authentication through the dashboard and consumes only explicitly declared nonsecret readiness signals. `lift attach` can expose the raw PTY for development or unsupported custom recipes, but it is not part of the supported consumer journey.
 
@@ -180,7 +190,11 @@ ChatGPT mobile
     -> Lift-owned persistent workspace
 ```
 
-This path remains experimental. One founder-only Phase 0 run now verifies direct phone execution against a real Ubuntu EC2 workspace and strongly corroborates a laptop-off sequence through a fresh challenge/proof exchange and Mac reboot timestamps. That evidence is human-attested rather than cryptographically device-attested. A subsequent EC2 stop/start changed the guest boot ID while preserving the exact EBS workspace, earlier checkpoints and proof files, and exact Codex Remote environment ID. It also exposed a false-positive readiness bug: the daemon was live but no native Codex project was registered, so new mobile tasks fell into projectless paths outside the service's narrow write boundary. The version-pinned connector now registers and reads back the exact project, and the generic runner distinguishes `healthy` from semantic `ready`. After that repair, one fresh post-baseline phone task passed exact folder/runtime binding, guarded approval observation, proof, following checkpoint, exact-version restore, and fresh safe-to-close evaluation. Separate provider-service identity and credential isolation, network recovery, revocation, repetition, complete Land, and provider-policy gates remain open. The official OpenAI documentation currently describes phone Remote through an awake Mac or Windows desktop host and separately documents the desktop app starting Codex App Server on an SSH host.
+This path remains experimental. One founder-only Phase 0 run now verifies direct phone execution against a real Ubuntu EC2 workspace and strongly corroborates a laptop-off sequence through a fresh challenge/proof exchange and Mac reboot timestamps. That evidence is human-attested rather than cryptographically device-attested. A subsequent EC2 stop/start changed the guest boot ID while preserving the exact EBS workspace, earlier checkpoints and proof files, and exact Codex Remote environment ID. It also exposed a false-positive readiness bug: the daemon was live but no native Codex project was registered, so new mobile tasks fell into projectless paths outside the service's narrow write boundary. The version-pinned connector now registers and reads back the exact project, and the generic runner distinguishes `healthy` from semantic `ready`. After that repair, one fresh post-baseline phone task passed exact folder/runtime binding, guarded approval observation, proof, following checkpoint, exact-version restore, and fresh safe-to-close evaluation.
+
+The same generated fixture subsequently completed one live clean Land round trip on 2026-09-02. Once the guest entered `LANDING`, the provider-blind runner remained fenced from restarting; immutable `0004-land-final` was restored and imported by exact S3 object version on the Mac, reconciliation returned `APPLIED`, the guest accepted the exact acknowledgement, the lease became `LOCAL_PRIMARY`, and EC2 stopped. An initial `/run` record-directory permission failure was safely resumed from the same already durable final checkpoint and then fixed and tested.
+
+Fresh generated-fixture run `p0-20260902183748-a7b1` then passed the deliberate same-file conflict path. Land froze the provider workload, sealed and restore-tested immutable `0002-land-final`, returned `NEEDS_REVIEW`, kept both controller and guest ownership at `LANDING`, left the original local fixture untouched, retained independently recoverable local and cloud sides, kept the runner fenced, and retained compute. Retrying Land reused the exact conflict evidence and reported `changed: false`. This is founder-only fixture evidence, not H6 or private-alpha acceptance. Separate provider-service identity and credential isolation, production isolation, network recovery, revocation, broader repetition and interruption coverage, arbitrary real-workspace capture, automatic offline-helper wake, conflict-resolution UI, the customer UI/helper, the no-terminal journey, and provider-policy gates remain open. The official OpenAI documentation currently describes phone Remote through an awake Mac or Windows desktop host and separately documents the desktop app starting Codex App Server on an SSH host.
 
 The stable fallback is:
 
@@ -219,7 +233,7 @@ Official references:
 16. Reconstruct and read back the exact native provider project before declaring readiness.
 17. Create a fresh mobile task bound to the exact Lift folder and write a post-restart proof inside the exact Lift workspace.
 
-The direct transport, real-EC2 workspace, structural stop/start recovery, server-side project/readiness reconstruction, fresh exact-folder phone task, guarded approval/proof turn, and following restore-tested checkpoint now pass once. Promotion still requires network interruption and recovery, reauthentication and revocation, repeated independent laptop-off and stop/start runs, provider-policy review, complete conflict-safe Land, a zero-terminal product path, and separate provider-service identity and credential isolation. Until then, Lift remains provider-neutral and Codex remains an experimental recipe rather than a supported phone-with-laptop-off surface.
+The direct transport, real-EC2 workspace, structural stop/start recovery, server-side project/readiness reconstruction, fresh exact-folder phone task, guarded approval/proof turn, following restore-tested checkpoint, and clean and deliberate-conflict disposable-fixture returns now pass once each. Promotion still requires network interruption and recovery, reauthentication and revocation, repeated independent users and runs, broader interruption coverage, provider-policy review, arbitrary real-workspace capture, automatic offline-helper wake, conflict-resolution UI, a zero-terminal customer path, and separate provider-service identity and credential isolation. Until then, Lift remains provider-neutral and Codex remains an experimental recipe rather than a supported phone-with-laptop-off surface.
 
 ## Claude as another recipe
 
@@ -276,6 +290,6 @@ The provider may separately preserve its own session. Lift should not scrape or 
 - copying opaque provider credentials from the laptop;
 - automating account creation or bypassing provider policy.
 
-## Final product statement
+## Runner boundary statement
 
-Lift runs any user-chosen remote-capable agent command on a persistent cloud workspace. When that agent offers native mobile remote control, the user keeps using it exactly as the provider designed it.
+At the runner layer, Lift can run any reviewed, user-chosen remote-capable agent command inside a persistent cloud workspace. When that agent offers native mobile remote control, the user keeps using it exactly as the provider designed it. The full product is the durable project workspace and its state, participants, capabilities, and recovery—not merely this command runner; see [`PRODUCT_NORTH_STAR.md`](PRODUCT_NORTH_STAR.md).

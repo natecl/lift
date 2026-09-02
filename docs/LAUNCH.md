@@ -9,13 +9,13 @@ This document is the tactical first build and alpha plan. Phase gates are define
 - Day 1's direct provider path, one EC2/EBS stop/start, fresh exact-folder phone task, guarded approval/proof, and following restore-tested checkpoint have passed once as founder-only evidence.
 - Day 2 is not complete: capture is restricted to a generated fixture, and there is no signed helper, dashboard, reviewable real-workspace manifest, or zero-terminal flow.
 - Day 3's underlying runtime driver, provider-blind runner, Codex recipe, and fail-closed safe-to-close evidence exist in the harness; the one-button product surface does not.
-- Day 4 has immutable cloud checkpoints and stop/start durability, but the complete clean/conflicted Land path and local acknowledgement do not exist.
+- Day 4's generated-fixture core has passed separate live clean and deliberate same-file conflict runs. The clean path completed exact-version restore/import, local application and acknowledgement, lease return, and compute stop. The conflict path preserved exact `B/L/C` plus untouched local state, stopped at `NEEDS_REVIEW`/`LANDING`, kept the writer fenced, and repeated idempotently. Conflict-resolution UX, offline-helper continuation, and arbitrary real-workspace return remain unproven.
 
-The immediate build is Land on the disposable fixture, beginning with an unchanged-local clean return and a deliberate same-file conflict. See [`CURRENT_STATE.md`](CURRENT_STATE.md).
+The next highest-value product slice is an explicit, reviewable real-workspace manifest so the proven fixture lifecycle can safely expand beyond generated test data. In parallel, repeat clean and conflict Land from fresh sessions and exercise additional interruption and offline-helper recovery cases. See [`CURRENT_STATE.md`](CURRENT_STATE.md).
 
 ## Launch recommendation
 
-Launch a landing page immediately and a private alpha when one real project can complete the full local-to-cloud-to-phone-to-local loop.
+Launch a landing page immediately. Treat one real project completing the full local-to-cloud-to-phone-to-local loop as necessary private-alpha evidence, not a sufficient release gate. Private alpha also requires the applicable security and operations blockers—especially provider-service and credential isolation, signed or content-addressed bootstrap, revoke/delete/recovery controls, and the relevant items in [`LAUNCH_CHECKLIST.md`](LAUNCH_CHECKLIST.md)—to pass.
 
 Do not publicly launch Lift as a general cloud laptop. The first launch should make one narrow claim and demonstrate it live.
 

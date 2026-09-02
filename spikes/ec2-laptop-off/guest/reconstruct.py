@@ -24,6 +24,7 @@ LEDGER_ROOT = Path("/var/lib/lift/ledger")
 STATE_ROOT = Path("/var/lib/lift-spike/workspaces")
 SAFE_ID = re.compile(r"^[a-z0-9][a-z0-9-]{2,63}$")
 EXPECTED_ARCHIVE_MEMBERS = {"ledger.bundle", "manifest.json", "session.json"}
+FIXTURE_MARKER_PATH = ".lift-spike-fixture.json"
 
 
 class ReconstructError(RuntimeError):
@@ -47,6 +48,40 @@ def run(command: list[str], *, cwd: Path | None = None) -> str:
     return completed.stdout
 
 
+def git(arguments: list[str], *, cwd: Path | None = None) -> str:
+    environment = {
+        key: value for key, value in os.environ.items() if not key.startswith("GIT_")
+    }
+    environment.update(
+        {
+            "GIT_CONFIG_NOSYSTEM": "1",
+            "GIT_CONFIG_GLOBAL": os.devnull,
+            "GIT_TERMINAL_PROMPT": "0",
+        }
+    )
+    completed = subprocess.run(
+        [
+            "git",
+            "-c",
+            f"core.hooksPath={os.devnull}",
+            "-c",
+            "core.fsmonitor=false",
+            "-c",
+            "commit.gpgSign=false",
+            *arguments,
+        ],
+        cwd=cwd,
+        env=environment,
+        text=True,
+        capture_output=True,
+    )
+    if completed.returncode != 0:
+        raise ReconstructError(
+            f"Git command failed ({' '.join(arguments)}): {completed.stderr.strip()}"
+        )
+    return completed.stdout
+
+
 def read_json(path: Path) -> dict[str, Any]:
     try:
         value = json.loads(path.read_text(encoding="utf-8"))
@@ -55,6 +90,114 @@ def read_json(path: Path) -> dict[str, Any]:
     if not isinstance(value, dict):
         raise ReconstructError(f"JSON at {path} must be an object")
     return value
+
+
+def inside_workspace(relative: str) -> bool:
+    path = Path(relative)
+    return (
+        bool(relative)
+        and not path.is_absolute()
+        and ".." not in path.parts
+        and relative != ".git"
+        and not relative.startswith(".git/")
+    )
+
+
+def validate_fixture_policy_shape(value: object) -> dict[str, Any]:
+    expected_keys = {
+        "schemaVersion",
+        "markerPath",
+        "markerSha256",
+        "approvedIgnoredPath",
+        "excludedSentinelPath",
+    }
+    if not isinstance(value, dict) or set(value) != expected_keys:
+        raise ReconstructError("Lift Off session omitted its fixture policy")
+    marker_path = value.get("markerPath")
+    marker_sha = value.get("markerSha256")
+    approved = value.get("approvedIgnoredPath")
+    excluded = value.get("excludedSentinelPath")
+    if (
+        value.get("schemaVersion") != 1
+        or marker_path != FIXTURE_MARKER_PATH
+        or not isinstance(marker_sha, str)
+        or re.fullmatch(r"[0-9a-f]{64}", marker_sha) is None
+        or not isinstance(approved, str)
+        or not inside_workspace(approved)
+        or not isinstance(excluded, str)
+        or not inside_workspace(excluded)
+        or approved == excluded
+        or marker_path in {approved, excluded}
+    ):
+        raise ReconstructError("Lift Off fixture policy is invalid")
+    return value
+
+
+def validate_fixture_policy(
+    value: object,
+    manifest: dict[str, Any],
+) -> dict[str, Any]:
+    value = validate_fixture_policy_shape(value)
+    marker_path = str(value["markerPath"])
+    marker_sha = str(value["markerSha256"])
+    excluded = str(value["excludedSentinelPath"])
+    entries = manifest.get("entries")
+    if not isinstance(entries, list):
+        raise ReconstructError("Lift Off fixture policy has no manifest")
+    marker_entry = next(
+        (
+            entry
+            for entry in entries
+            if isinstance(entry, dict) and entry.get("path") == marker_path
+        ),
+        None,
+    )
+    if (
+        not isinstance(marker_entry, dict)
+        or marker_entry.get("type") != "file"
+        or marker_entry.get("sha256") != marker_sha
+    ):
+        raise ReconstructError("baseline fixture marker does not match its pinned policy")
+    if any(
+        isinstance(entry, dict)
+        and isinstance(entry.get("path"), str)
+        and (
+            entry["path"] == excluded
+            or entry["path"].startswith(excluded.rstrip("/") + "/")
+        )
+        for entry in entries
+    ):
+        raise ReconstructError("hard-excluded fixture path entered the Lift Off manifest")
+    return value
+
+
+def verify_fixture_marker(workspace: Path, policy: dict[str, Any]) -> None:
+    marker_path = workspace / str(policy["markerPath"])
+    try:
+        info = marker_path.lstat()
+        marker_bytes = marker_path.read_bytes()
+        marker = json.loads(marker_bytes.decode("utf-8"))
+    except (FileNotFoundError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise ReconstructError("reconstructed fixture marker is invalid") from exc
+    if (
+        marker_path.is_symlink()
+        or not stat.S_ISREG(info.st_mode)
+        or info.st_size > 4096
+        or hashlib.sha256(marker_bytes).hexdigest() != policy["markerSha256"]
+        or not isinstance(marker, dict)
+        or set(marker)
+        != {
+            "approvedIgnoredPath",
+            "excludedSentinelPath",
+            "kind",
+            "schemaVersion",
+        }
+        or marker.get("schemaVersion") != 1
+        or marker.get("kind") != "lift-disposable-fixture"
+        or marker.get("approvedIgnoredPath") != policy["approvedIgnoredPath"]
+        or marker.get("excludedSentinelPath") != policy["excludedSentinelPath"]
+    ):
+        raise ReconstructError("reconstructed fixture marker differs from pinned policy")
 
 
 def verify_manifest(workspace: Path, manifest: dict[str, Any]) -> None:
@@ -69,14 +212,29 @@ def verify_manifest(workspace: Path, manifest: dict[str, Any]) -> None:
         relative_path = Path(relative)
         if relative_path.is_absolute() or ".." in relative_path.parts or relative.startswith(".git/"):
             raise ReconstructError(f"unsafe manifest path: {relative}")
+        if relative in expected_paths:
+            raise ReconstructError(f"duplicate manifest path: {relative}")
+        if (
+            not isinstance(entry.get("sha256"), str)
+            or re.fullmatch(r"[0-9a-f]{64}", entry["sha256"]) is None
+            or not isinstance(entry.get("size"), int)
+            or entry["size"] < 0
+            or not isinstance(entry.get("executable"), bool)
+        ):
+            raise ReconstructError(f"invalid manifest metadata: {relative}")
         expected_paths.add(relative)
         absolute = workspace / relative
-        info = absolute.lstat()
+        try:
+            info = absolute.lstat()
+        except FileNotFoundError as exc:
+            raise ReconstructError(f"missing manifest path: {relative}") from exc
         if entry.get("type") == "file":
             if not stat.S_ISREG(info.st_mode):
                 raise ReconstructError(f"expected a regular file: {relative}")
             if sha256_file(absolute) != entry.get("sha256"):
                 raise ReconstructError(f"content hash mismatch: {relative}")
+            if info.st_size != entry.get("size"):
+                raise ReconstructError(f"content size mismatch: {relative}")
             if bool(stat.S_IMODE(info.st_mode) & stat.S_IXUSR) != entry.get("executable"):
                 raise ReconstructError(f"executable mode mismatch: {relative}")
         elif entry.get("type") == "symlink":
@@ -85,6 +243,12 @@ def verify_manifest(workspace: Path, manifest: dict[str, Any]) -> None:
             target = os.readlink(absolute)
             if hashlib.sha256(target.encode("utf-8")).hexdigest() != entry.get("sha256"):
                 raise ReconstructError(f"symbolic-link hash mismatch: {relative}")
+            if entry.get("target") != target:
+                raise ReconstructError(f"symbolic-link target mismatch: {relative}")
+            if entry.get("size") != len(target.encode("utf-8")):
+                raise ReconstructError(f"symbolic-link size mismatch: {relative}")
+            if entry.get("executable") is not False:
+                raise ReconstructError(f"symbolic-link mode mismatch: {relative}")
         else:
             raise ReconstructError(f"unsupported entry type: {relative}")
 
@@ -140,6 +304,8 @@ def reconstruct(args: argparse.Namespace) -> dict[str, Any]:
             and target.is_dir()
             and not target.is_symlink()
         ):
+            stored_policy = validate_fixture_policy_shape(state.get("fixturePolicy"))
+            verify_fixture_marker(target, stored_policy)
             return {**state, "changed": False}
         raise ReconstructError("an incompatible workspace reconstruction already exists")
     if target.exists() or target.is_symlink():
@@ -178,13 +344,16 @@ def reconstruct(args: argparse.Namespace) -> dict[str, Any]:
             raise ReconstructError("manifest self-hash mismatch")
         if session.get("manifestSha256") != manifest_sha:
             raise ReconstructError("session manifest hash mismatch")
+        fixture_policy = validate_fixture_policy(
+            session.get("fixturePolicy"),
+            manifest,
+        )
 
         if ledger.exists():
             if ledger.is_symlink() or not ledger.is_dir():
                 raise ReconstructError("private ledger path is not a physical directory")
-            existing_commit = run(
+            existing_commit = git(
                 [
-                    "git",
                     f"--git-dir={ledger}",
                     "rev-parse",
                     f"{session['baselineRef']}^{{commit}}",
@@ -193,10 +362,9 @@ def reconstruct(args: argparse.Namespace) -> dict[str, Any]:
             if existing_commit != session["baselineCommit"]:
                 raise ReconstructError("existing private ledger does not match this package")
         else:
-            run(["git", "init", "--bare", str(ledger)])
-            run(
+            git(["init", "--bare", str(ledger)])
+            git(
                 [
-                    "git",
                     f"--git-dir={ledger}",
                     "fetch",
                     "--no-tags",
@@ -205,9 +373,10 @@ def reconstruct(args: argparse.Namespace) -> dict[str, Any]:
                 ]
             )
         temporary_workspace = temporary / "workspace"
-        run(["git", "clone", "--no-checkout", str(ledger), str(temporary_workspace)])
-        run(["git", "checkout", "--detach", session["baselineCommit"]], cwd=temporary_workspace)
+        git(["clone", "--no-checkout", str(ledger), str(temporary_workspace)])
+        git(["checkout", "--detach", session["baselineCommit"]], cwd=temporary_workspace)
         verify_manifest(temporary_workspace, manifest)
+        verify_fixture_marker(temporary_workspace, fixture_policy)
 
         lift_user = pwd.getpwnam("lift")
         chown_tree(temporary_workspace, lift_user.pw_uid, lift_user.pw_gid)
@@ -228,6 +397,7 @@ def reconstruct(args: argparse.Namespace) -> dict[str, Any]:
         "baselineCommit": session["baselineCommit"],
         "baselineRef": session["baselineRef"],
         "manifestSha256": manifest_sha,
+        "fixturePolicy": fixture_policy,
         "packageSha256": args.sha256,
         "mountSource": mount_source,
     }

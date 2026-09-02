@@ -4,15 +4,19 @@ Last updated: 2026-09-02
 
 ## Product truth
 
-Lift will not win because it provisions virtual machines. It wins when cloud infrastructure becomes invisible enough that keeping an agent on a laptop feels unnecessarily primitive.
+Lift will not win because it provisions virtual machines. It wins when a software project has one persistent cloud workspace that its developers and agents can enter from any device without rebuilding it or keeping a laptop online.
 
-The recurring experience should be:
+The first recurring experience should be:
 
 > Click Lift Off. Wait until Lift says it is safe. Close the laptop. Continue in the agent app already on your phone.
 
+The north-star recurring experience should be:
+
+> Open an agent app on your phone, select the Lift workspace, and launch useful work while every personal computer is offline.
+
 No SSH, terminal, cloud account, region, instance type, volume, daemon, token, or remote-control command should appear in the normal journey.
 
-The current repository is still a founder-operated feasibility harness rather than this product experience. It proves the provider path once on a generated fixture, but it has no dashboard, signed helper, reviewable real-workspace manifest, one-click connection flow, or complete Land. See [`CURRENT_STATE.md`](CURRENT_STATE.md) for the exact implementation boundary.
+The current repository is still a founder-operated feasibility harness rather than this product experience. It proves the provider path once and, on 2026-09-02, completed separate live clean and deliberate same-file conflict Land runs on generated disposable fixtures through real EC2/EBS/S3 and the Mac. The clean path restored and applied exact immutable `C`, acknowledged it, returned ownership to `LOCAL_PRIMARY`, and stopped EC2. The conflict path returned `NEEDS_REVIEW`, preserved exact `B/L/C` plus the untouched local workspace, kept ownership `LANDING`, fenced cloud writers, and made no acknowledgement or cleanup; repeating Land was a no-op. There is still no dashboard, signed helper, reviewable arbitrary real-workspace manifest, one-click connection flow, automatic offline-helper wake, or conflict-resolution UI. See [`CURRENT_STATE.md`](CURRENT_STATE.md) for the exact implementation boundary.
 
 ## What provider-neutral means for the product
 
@@ -27,6 +31,8 @@ Provider-neutral means:
 - provider differences are isolated in reviewed connection recipes;
 - users interact with one consistent Lift connection and launch experience;
 - provider chat, approvals, models, transcripts, and mobile transport remain provider-owned.
+
+It also means the workspace can host multiple heterogeneous agents over time. The workspace's files, services, checkpoints, browser capabilities, policies, and activity history cannot belong to a single provider conversation.
 
 The technical complexity may vary underneath. The product surface must not.
 
@@ -75,7 +81,21 @@ Lift must never ask the user to paste a session cookie or find a token in a term
 
 The connection is established once and reused until the provider requires reauthentication.
 
-### 4. Select local workspace
+### 4. Create or select workspace
+
+The user sees three creation choices:
+
+```text
+Create workspace
+
+From this computer   Lift an active local folder
+From GitHub          Start from a repository
+Empty workspace      Start from a template or blank environment
+```
+
+Every choice creates the same class of durable Lift workspace. GitHub can be connected later and is not required for a local or empty workspace.
+
+### 5. Select local workspace
 
 The user chooses a folder through the desktop application or CLI bootstrap. Lift explains the transfer in product language:
 
@@ -83,7 +103,13 @@ The user chooses a folder through the desktop application or CLI bootstrap. Lift
 
 The manifest remains inspectable, but the primary action is clear.
 
-## Recurring one-button journey
+### GitHub-created and empty workspaces
+
+A GitHub-created workspace asks the user to select a repository and, where applicable, a branch or default environment template. Lift then prepares the runtime and opens the same workspace page used by a locally lifted project.
+
+An empty workspace begins from a reviewed base image or template and may connect GitHub later. Neither path claims to include local dirty state that was never transferred.
+
+## Recurring local handoff journey
 
 The workspace card has one dominant button:
 
@@ -153,6 +179,86 @@ Where supported, Lift may provide:
 
 These are handoff affordances, not a Lift chat layer.
 
+Phone continuation is not complete if the user can only observe or continue the process launched before Lift Off. A first-class provider connection should also allow the user to create a completely new task from the provider's phone application, bind it to the exact Lift workspace, and begin work while the laptop is offline.
+
+The target flow is:
+
+1. Open the provider application on the phone.
+2. Select its remote-workspace surface.
+3. Select the named Lift workspace.
+4. Launch a new task.
+5. Lift wakes compute if necessary.
+6. Lift verifies the task's actual workspace binding and declared capabilities.
+7. The provider application continues to own prompts, approvals, and notifications.
+
+Lift may expose mobile workspace management for health, agents, task modes, permissions, cost, snapshots, stop, and recovery. It should not require a second chat surface when the provider application already supplies one.
+
+## Multi-agent experience
+
+A workspace may run one or more agent tasks. Starting another task asks only for the goal, agent, and an optional execution-mode override. Infrastructure choices remain hidden.
+
+```text
+Start agent
+
+Agent       Codex
+Workspace   Acme
+Mode        Work together
+
+[Start]
+```
+
+The user-facing modes are:
+
+- `Work together`: use the shared working directory and see current uncommitted changes immediately;
+- `Work independently`: use an isolated worktree, branch, or copy-on-write environment and return a reviewable result;
+- `Review only`: inspect and test without permission to modify files.
+
+Shared mode does not pretend concurrent arbitrary shell writes are perfectly safe. Before the run, Lift creates a recoverable checkpoint. During the run, it attributes commands and observed file changes to each agent, shows current file activity, detects overlap, allows immediate pause or stop, and retains overwritten versions when a collision occurs.
+
+The workspace page should answer:
+
+- which humans and agents are present;
+- what each task is trying to accomplish;
+- whether each task is shared, isolated, or read-only;
+- which files and services each task is touching;
+- whether any task is blocked, waiting for approval, or colliding;
+- what changed and what can be restored;
+- which results are ready for review or GitHub publication.
+
+## Internet, browser, and computer experience
+
+The workspace capability panel should make powerful access visible without forcing infrastructure knowledge:
+
+```text
+Capabilities
+
+Internet       Allowed with workspace policy
+Terminal       Allowed
+Browser        Project profile
+Computer use   Ask for consequential actions
+Previews       Two protected services
+```
+
+The capability sequence is terminal and bounded outbound internet, headless Chromium for tests and automation, visible browser observation, secure user takeover, persistent project-scoped browser identity, and broader computer use.
+
+When login, passkey, two-factor authentication, CAPTCHA, or human confirmation is required, the agent requests a short-lived takeover. The user sees the exact workspace and browser context, completes the human-only step, and returns control. Lift never imports the user's everyday browser cookie database or presents a project browser profile as a separate agent security boundary unless isolation is actually enforced.
+
+Concurrent agents receive separate browser contexts or screens by default even when they share the code working directory. Sharing an authenticated browser identity must be an explicit workspace policy.
+
+## Team workspace experience
+
+After solo repeat use is proven, a workspace owner can invite a teammate or derive access from a connected GitHub repository. The first team experience remains intentionally small:
+
+- owner, member, and viewer roles;
+- explicit workspace membership;
+- per-human and per-agent task identity;
+- scoped secrets and browser capabilities;
+- shared, isolated, and read-only task policies;
+- activity provenance and stop controls;
+- GitHub review and publication.
+
+Lift should not require enterprise SSO, complex organization hierarchy, or a collaborative code editor to validate small-team demand.
+
 ## Return to the laptop
 
 Lift Off must be a round trip. The cloud workspace cannot become a second disconnected copy that the user later has to reconcile manually.
@@ -167,12 +273,12 @@ Lift pauses workspace writers, creates a final checkpoint, and waits for the des
 
 When the desktop helper comes back online:
 
-1. It compares local and cloud state against the handoff baseline.
-2. If the local workspace is unchanged, it downloads the cloud delta outside the project, verifies hashes, rechecks the local precondition, and applies the delta transactionally.
-3. If both sides changed different files, it applies nonconflicting changes and stages the divergent result for review.
-4. If both sides changed the same content, it creates a recoverable branch, worktree, or sibling copy and asks the user which version to keep.
-5. It never silently overwrites either side.
-6. It returns workspace ownership to the laptop only after the local helper acknowledges the applied cloud revision.
+1. It downloads the exact final cloud revision outside the project, verifies it, and imports its recovery refs into Lift-private state.
+2. It captures the current local workspace as private revision `L` without moving the user's branch, refs, or index.
+3. It compares baseline `B`, local `L`, and cloud `C`, then performs the return merge in an isolated worktree.
+4. If the result is clean—including independent edits on different paths—it rechecks the local precondition and applies the verified result transactionally.
+5. If changes overlap or another platform hazard exists, it leaves the original workspace untouched, preserves every side, and asks the user which result to keep.
+6. It never silently overwrites either side and returns ownership to the laptop only after the exact applied cloud revision is acknowledged locally and by the cloud record.
 
 The successful default message is:
 
@@ -188,6 +294,8 @@ The first implementation deliberately avoids background bidirectional mirroring 
 
 The exact manifest, Land, transactional-apply, and conflict rules are defined in [`STATE_SYNC.md`](STATE_SYNC.md).
 
+The founder fixtures have now exercised both return outcomes once across the live infrastructure boundary. The clean transaction resumed from its already durable `0004-land-final`, completed `APPLIED`, acknowledged the same `C`, returned the lease to `LOCAL_PRIMARY`, and stopped compute. A fresh deliberate-conflict transaction stopped at `NEEDS_REVIEW`, preserved exact local and cloud versions without modifying the original workspace, kept the lease `LANDING`, fenced the cloud runner, and repeated idempotently. This still does not prove the intended user experience: the runs were terminal-operated, the fixtures used fixed transfer policy, the helper did not wake automatically from an offline state, and no user-facing conflict resolution was completed.
+
 ## Always available, not literally one immortal process
 
 The durable promise is the workspace, not an eternal operating-system process or one permanent provider conversation.
@@ -200,6 +308,7 @@ Lift should make interruptions invisible when possible:
 - preserve a provider-neutral continuation package;
 - request reauthentication only when the provider requires it;
 - bring the user back to the same project and current work.
+- accept and route a new provider-native mobile task after compute wakes.
 
 The user experience should feel permanent even when infrastructure and provider sessions restart underneath.
 
@@ -287,7 +396,7 @@ In the tested mobile picker, `Add new folder` creates a controller task bound to
 
 The manual `Add new folder` action is an observed feasibility workaround, not the target product journey. Before first-class support, Lift must either orchestrate a supported provider-owned equivalent from the Connections/Lift Off flow or state the one-time provider-app action clearly and verify the resulting folder binding without terminal setup.
 
-The first post-restart phone attempts then exposed a second failure: the daemon was live but its native project registry was empty, so new tasks used synthetic projectless paths; older tasks also entered an approval loop with no usable approval control. The server-side remedy is now deployed and live-readback verifies the exact native project/root, connected Remote state, and one registered controller. The phone project picker nevertheless showed only `Chat` and `Add new folder`, so controller-side visibility remains unknown and Lift must preserve the explicit folder-binding model instead of claiming that `lift` is listed or assigned. The repaired path has now passed end to end once: exact fresh-task folder binding, post-restart proof, guarded native approval round trip, restore-tested following checkpoint, and fresh safe-to-close evaluation. Codex still must not receive the `Direct phone continuation` badge for alpha until provider-service identity and credential isolation, network recovery, revocation, repeated laptop-off runs, full Land, and provider-policy review pass their separate gates.
+The first post-restart phone attempts then exposed a second failure: the daemon was live but its native project registry was empty, so new tasks used synthetic projectless paths; older tasks also entered an approval loop with no usable approval control. The server-side remedy is now deployed and live-readback verifies the exact native project/root, connected Remote state, and one registered controller. The phone project picker nevertheless showed only `Chat` and `Add new folder`, so controller-side visibility remains unknown and Lift must preserve the explicit folder-binding model instead of claiming that `lift` is listed or assigned. The repaired path has now passed end to end once: exact fresh-task folder binding, post-restart proof, guarded native approval round trip, restore-tested following checkpoint, and fresh safe-to-close evaluation. Clean and deliberate-conflict generated-fixture Land outcomes have also passed once each, but Codex still must not receive the `Direct phone continuation` badge for alpha until provider-service identity and credential isolation, network recovery, revocation, repeated users and runs, conflict-resolution UX, the automatic no-terminal helper journey, and provider-policy review pass their separate gates.
 
 Official references:
 
@@ -314,6 +423,13 @@ Measure whether complexity truly disappeared:
 - provider reauthentication frequency;
 - percentage of users who actually close the laptop;
 - percentage who continue from the provider's phone application;
+- percentage who launch a completely new provider-native task while the laptop is offline;
+- time from a mobile launch request to a correctly bound running task;
+- workspaces reused across several days without reconstruction;
+- workspaces with concurrent or sequential multi-agent use;
+- shared-mode overlap warnings, recoveries, and abandoned runs;
+- browser-task completion and takeover success without credential leakage;
+- collaborator invitations, joins, and repeated team use;
 - recovery success after process or workspace restart;
 - automatic cloud-to-local reconciliation success rate;
 - local divergence and conflict rate;
@@ -322,4 +438,4 @@ Measure whether complexity truly disappeared:
 
 The north-star qualitative reaction is:
 
-> I clicked one button, closed my laptop, and everything was already on my phone.
+> I closed my laptop, started another agent from my phone, and it entered the same working project my team and other agents were already using.

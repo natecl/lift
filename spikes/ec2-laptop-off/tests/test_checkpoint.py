@@ -2,11 +2,13 @@ from __future__ import annotations
 
 import json
 import hashlib
+import os
 from pathlib import Path
 import subprocess
 import sys
 import tempfile
 import unittest
+from unittest import mock
 
 
 SPIKE_ROOT = Path(__file__).resolve().parents[1]
@@ -14,6 +16,7 @@ GUEST_ROOT = SPIKE_ROOT / "guest"
 sys.path.insert(0, str(SPIKE_ROOT))
 sys.path.insert(0, str(GUEST_ROOT))
 
+import checkpoint as checkpoint_module  # noqa: E402
 from checkpoint import CheckpointError, create_checkpoint  # noqa: E402
 from workspace import capture_baseline, create_fixture  # noqa: E402
 
@@ -146,6 +149,86 @@ class CloudCheckpointTests(unittest.TestCase):
         ):
             self.checkpoint()
 
+    def test_unignoring_sentinel_cannot_admit_it_to_a_checkpoint(self) -> None:
+        (self.workspace / ".gitignore").write_text(
+            "approved-state/\n",
+            encoding="utf-8",
+        )
+        (self.workspace / "excluded.env").write_text(
+            "SECRET=VISIBLE_TO_GIT_BUT_NEVER_TO_LIFT\n",
+            encoding="utf-8",
+        )
+        git("add", "-f", "excluded.env", cwd=self.workspace)
+        before_index = (self.workspace / ".git" / "index").read_bytes()
+
+        result = self.checkpoint()
+
+        self.assertEqual(before_index, (self.workspace / ".git" / "index").read_bytes())
+        manifest = json.loads(
+            Path(result["manifestPath"]).read_text(encoding="utf-8")
+        )
+        paths = {entry["path"] for entry in manifest["entries"]}
+        tree_paths = set(
+            git(
+                "ls-tree",
+                "-r",
+                "--name-only",
+                result["commit"],
+                git_dir=self.ledger,
+            ).splitlines()
+        )
+        self.assertNotIn("excluded.env", paths)
+        self.assertNotIn("excluded.env", tree_paths)
+        self.assertEqual(
+            "approved-state/\n",
+            git("show", f"{result['commit']}:.gitignore", git_dir=self.ledger),
+        )
+        state = json.loads(self.state_path.read_text(encoding="utf-8"))
+        self.assertEqual(self.capture.fixture_policy, state["fixturePolicy"])
+        self.assertEqual(self.capture.fixture_policy, result["fixturePolicy"])
+
+    def test_force_added_ignored_tracked_files_remain_in_checkpoint(self) -> None:
+        ignored_committed = "ignored-committed.bin"
+        ignored_staged = "ignored-staged.bin"
+        with (self.workspace / ".gitignore").open("a", encoding="utf-8") as handle:
+            handle.write(f"{ignored_committed}\n{ignored_staged}\n")
+        committed_content = b"committed ignored bytes\x00\xff\n"
+        staged_content = b"staged ignored bytes\x00\xfe\n"
+        (self.workspace / ignored_committed).write_bytes(committed_content)
+        git("add", ".gitignore", cwd=self.workspace)
+        git("add", "-f", ignored_committed, cwd=self.workspace)
+        git("commit", "-m", "Track an intentionally ignored cloud file", cwd=self.workspace)
+        (self.workspace / ignored_staged).write_bytes(staged_content)
+        git("add", "-f", ignored_staged, cwd=self.workspace)
+        before_index = (self.workspace / ".git" / "index").read_bytes()
+
+        result = self.checkpoint()
+
+        self.assertEqual(before_index, (self.workspace / ".git" / "index").read_bytes())
+        manifest = json.loads(
+            Path(result["manifestPath"]).read_text(encoding="utf-8")
+        )
+        entries = {entry["path"]: entry for entry in manifest["entries"]}
+        self.assertEqual(
+            hashlib.sha256(committed_content).hexdigest(),
+            entries[ignored_committed]["sha256"],
+        )
+        self.assertEqual(
+            hashlib.sha256(staged_content).hexdigest(),
+            entries[ignored_staged]["sha256"],
+        )
+        for path, content in (
+            (ignored_committed, committed_content),
+            (ignored_staged, staged_content),
+        ):
+            blob = subprocess.run(
+                ["git", f"--git-dir={self.ledger}", "show", f"{result['commit']}:{path}"],
+                check=True,
+                capture_output=True,
+            ).stdout
+            self.assertEqual(content, blob)
+        self.assertNotIn("excluded.env", entries)
+
     def test_second_checkpoint_chains_from_first_and_binds_new_evidence(self) -> None:
         first = self.checkpoint()
         first_ref_commit = git("rev-parse", first["ref"], git_dir=self.ledger).strip()
@@ -205,6 +288,84 @@ class CloudCheckpointTests(unittest.TestCase):
         bundle_heads = git("bundle", "list-heads", second["bundlePath"])
         self.assertIn(first["ref"], bundle_heads)
         self.assertIn(second["ref"], bundle_heads)
+        self.assertEqual(
+            [
+                {"ref": self.capture.ref, "objectId": self.capture.commit},
+                {"ref": first["ref"], "objectId": first["commit"]},
+                {"ref": second["ref"], "objectId": second["commit"]},
+            ],
+            second["recoveryCheckpointRefs"],
+        )
+        self.assertEqual(
+            first["recoveryHistoryRefs"],
+            second["recoveryHistoryRefs"][: len(first["recoveryHistoryRefs"])],
+        )
+        for item in [
+            *second["recoveryCheckpointRefs"],
+            *second["recoveryHistoryRefs"],
+        ]:
+            self.assertIn(f"{item['objectId']} {item['ref']}", bundle_heads)
+
+    def test_private_git_wrapper_disables_hostile_hooks_and_fsmonitor(self) -> None:
+        hostile = self.root / "hostile-git"
+        hostile.mkdir()
+        hook_marker = hostile / "reference-transaction-ran"
+        monitor_marker = hostile / "fsmonitor-ran"
+        hooks = hostile / "hooks"
+        hooks.mkdir()
+        reference_hook = hooks / "reference-transaction"
+        reference_hook.write_text(
+            "#!/bin/sh\n"
+            f"printf ran > {hook_marker}\n"
+            "exit 1\n",
+            encoding="utf-8",
+        )
+        reference_hook.chmod(0o755)
+        fsmonitor = hostile / "fsmonitor"
+        fsmonitor.write_text(
+            "#!/bin/sh\n"
+            f"printf ran > {monitor_marker}\n"
+            "printf 'fake-token\\n'\n",
+            encoding="utf-8",
+        )
+        fsmonitor.chmod(0o755)
+        git("config", "core.hooksPath", str(hooks), git_dir=self.ledger)
+        git("config", "core.fsmonitor", str(fsmonitor), git_dir=self.ledger)
+        private_index = self.root / "hostile-wrapper.index"
+        ref = "refs/lift/test-hostile-wrapper"
+        hostile_environment = {
+            "GIT_CONFIG_COUNT": "2",
+            "GIT_CONFIG_KEY_0": "core.hooksPath",
+            "GIT_CONFIG_VALUE_0": str(hooks),
+            "GIT_CONFIG_KEY_1": "core.fsmonitor",
+            "GIT_CONFIG_VALUE_1": str(fsmonitor),
+        }
+
+        with mock.patch.dict(os.environ, hostile_environment, clear=False):
+            checkpoint_module.git(
+                self.ledger,
+                ["read-tree", self.capture.commit],
+                workspace=self.workspace,
+                index=private_index,
+            )
+            status = checkpoint_module.git(
+                self.ledger,
+                ["status", "--porcelain=v2", "--untracked-files=all"],
+                workspace=self.workspace,
+                index=private_index,
+            )
+            checkpoint_module.git(
+                self.ledger,
+                ["update-ref", "--no-deref", ref, self.capture.commit, "0" * 40],
+            )
+
+        self.assertIn("REMOTE_TEST.md", status.stdout)
+        self.assertEqual(
+            self.capture.commit,
+            git("rev-parse", ref, git_dir=self.ledger).strip(),
+        )
+        self.assertFalse(hook_marker.exists())
+        self.assertFalse(monitor_marker.exists())
 
 
 if __name__ == "__main__":

@@ -14,7 +14,7 @@ Reason: The motivating behavior is personal laptop independence. Enterprise requ
 
 ### D-002: Replace laptop dependence before replacing GitHub
 
-Decision: The first product is a persistent personal workspace, not a collaborative source-hosting platform.
+Decision: The first buyer and workflow are personal, but the product object is a persistent project workspace—not a collaborative source-hosting platform or a disposable personal VM.
 
 Reason: Laptop independence produces the stronger emotional promise and matches the founder's interest.
 
@@ -86,7 +86,7 @@ Reason: The first recipe should match the founder's real workflow without coupli
 
 ### D-014: Codex laptop-off support is gated by a spike
 
-Decision: The real EC2 pairing, laptop-off, stop/start, fresh phone-task, guarded approval/proof, following checkpoint, and restore test have now passed once. Keep direct ChatGPT-mobile-to-Ubuntu Codex control classified as Experimental until network recovery, revocation, repeated independent runs, provider-policy review, provider-service credential isolation, and complete Land pass. Keep the documented ChatGPT Desktop-to-SSH path as a fallback, but do not call that fallback laptop-independent.
+Decision: The real EC2 pairing, laptop-off, stop/start, fresh phone-task, guarded approval/proof, following checkpoint, restore test, one clean live fixture Land, and one deliberate live fixture conflict have now passed once. Keep direct ChatGPT-mobile-to-Ubuntu Codex control classified as Experimental until network recovery, revocation, repeated independent runs, provider-policy review, provider-service credential isolation, explicit real-workspace review, and repeated conflict plus broader interruption evidence pass. Keep the documented ChatGPT Desktop-to-SSH path as a fallback, but do not call that fallback laptop-independent.
 
 Reason: Single-run feasibility answers whether the path can work, not whether OpenAI supports the topology or Lift can operate it safely and reliably for users. Official OpenAI documentation still establishes mobile pairing through an awake Mac or Windows desktop host, while the direct Linux commands remain experimental.
 
@@ -178,7 +178,7 @@ Reason: The live mobile task created after `Add new folder` used the intended EB
 
 ### D-029: Complete Land before dashboard polish or a second provider
 
-Decision: The next implementation slice is the conflict-safe Land path on the generated disposable fixture: freeze cloud writers, create and restore-test the final cloud checkpoint, capture returning local state privately, merge in an isolated Lift worktree, transactionally apply a clean result or preserve every conflicting side, acknowledge locally, return the ownership lease, and retain the complete session ledger.
+Decision: Complete the conflict-safe Land path on the generated disposable fixture before dashboard polish or a second provider: freeze cloud writers, create and restore-test the final cloud checkpoint, capture returning local state privately, merge in an isolated Lift worktree, transactionally apply a clean result or preserve every conflicting side, acknowledge locally, return the ownership lease, and retain the complete session ledger. The control path is implemented and unit-tested; one clean live EC2 execution and one separate deliberate live conflict passed on 2026-09-02. That is enough to accept the generated-fixture Land vertical slice. The next product boundary is D-030's explicit real-workspace manifest review, while conflict-resolution, additional interruption, offline-helper, and repeat evidence continue.
 
 Reason: The provider path has passed its single-run feasibility gate, while the product promise is still only half a loop. Completing clean return and deliberate conflict preservation removes the largest remaining work-preservation risk and tests the product's differentiated value more directly than adding UI polish, another provider, or broader infrastructure.
 
@@ -187,6 +187,88 @@ Reason: The provider path has passed its single-run feasibility gate, while the 
 Decision: The current capture harness must refuse any workspace that lacks the exact generated disposable-fixture marker before it creates a private ledger. It may include only the fixture's known untracked content and the one ignored path declared by that marker. Do not relax this guard to test a real repository. Replace it with a separately reviewed production discovery and explicit include/exclude manifest flow.
 
 Reason: Discovery is not permission to transfer. The spike's fixed fixture proves mechanics without creating a path that could silently upload secrets, arbitrary ignored files, or a user's real workspace before the product has a reviewable transfer boundary.
+
+### D-031: Land is one product action backed by a resumable transaction
+
+Decision: Present Land as one user action—`Bring changes back`—with three meaningful user states: returning safely, waiting for the original computer, or needs review with nothing overwritten. Internally, implement it as explicit durable phases for cloud freeze, final checkpoint, exact import, local capture, reconciliation, transactional apply, acknowledgement, and lease return. Decompose and test those phases independently, but do not expose infrastructure steps or require the user to orchestrate them.
+
+Reason: Small independently recoverable transitions make data safety and retries tractable, while exposing those transitions as setup work would destroy the product's core promise. Engineering decomposition is a reasoning and reliability technique, not a constraint on the optimal architecture or a burden shifted to the user.
+
+### D-032: The EBS Land record is the cloud write authority and `C` is immutable
+
+Decision: Persist the cloud-side ownership record on the encrypted workspace volume and write `FREEZE_REQUESTED` before stopping the provider-neutral workload. The generic runner must hold the same lifecycle lock and prove `CLOUD_PRIMARY` from that record immediately before activation. After the record enters `LANDING`, retries may only advance the same monotonic operation through `CLOUD_FROZEN`, one exact `land-final` checkpoint, local acknowledgement, and `ACKNOWLEDGED`; they may not create another final cloud state or restart a workspace writer.
+
+Bind the one final `C` to its complete checkpoint and Git-history ref maps, hashes, exact S3 object keys and version IDs, and successful independent restore test. Download those exact object versions outside the project, verify them in a private quarantine, and publish only absent-or-identical allowlisted refs into the local ledger. Return the lease to `LOCAL_PRIMARY` only after a clean local result and receipt produce a canonical acknowledgement for that exact `C`. A conflict remains `LANDING` with both sides preserved and no acknowledgement. Stop compute only after acknowledgement; cleanup failure may remain pending without revoking the completed local return.
+
+Reason: Controller state can be interrupted and compute can reboot. An EBS-resident write fence prevents a stale controller or systemd restart from creating a second writer, while one immutable recovery identity prevents retries from silently recapturing a different cloud tree. Exact-version quarantine and acknowledgement bind the state that was restored locally to the state that remains recoverable in the cloud. Cleanup belongs last because cost recovery must never be allowed to weaken work recovery.
+
+Evidence: On 2026-09-02, live founder fixture run `p0-20260901083520-4fee` sealed `0004-land-final` at commit `4bba13ff328a41dba0c898023e0d26cf3c31249c`, tree `df3bcde602bd34463dc70ffeb549bc4ae242d9ee`, and restored its exact versioned S3 bundle and manifest. The first attempt stopped safely at `FINAL_CHECKPOINT_DURABLE` on a `/run` parent-directory mode mismatch. After the permission fix, the same operation reused the same `C`, produced `APPLIED` merge `444b397a5ced2a0ba7d7b6e3b888f7a694523d9e`, receipt `da72f1ab6e81572dfc58501f1437af9835d1de1d`, and acknowledgement `d2e97376dadaa3e0aadd3af3c5c9545c28c9ec246b7deccfb382110b91e02bbc`; the guest reached `ACKNOWLEDGED`, ownership became `LOCAL_PRIMARY`, and compute stopped.
+
+Fresh disposable run `p0-20260902183748-a7b1` then sealed and restored `0002-land-final` at commit `722adcffd8ebba70fb222cfbb1f749b0f5e479bc`, tree `3aa8260a33ec8e8c50b8f277aa2118fd8b88770b`, after exact same-file local/cloud divergence. It returned `NEEDS_REVIEW`; both ownership records stayed `LANDING`; the original local workspace and Git state were exact; private stages preserved baseline, local, and cloud; no apply journal, receipt, acknowledgement, lease return, or cleanup was produced; the runner fence rejected activation; and a repeated Land returned `changed: false` without changing state, events, refs, operation evidence, or either side. This accepts the generated-fixture Land core, not offline-helper, arbitrary-workspace, conflict-resolution UI, H6, or launch evidence.
+
+### D-033: The project-centric cloud workspace is the product north star
+
+Decision: Define Lift as the persistent cloud workspace where developers and user-chosen AI agents work together from any device. Treat the workspace as the durable product object, independent of any laptop, phone, provider conversation, agent, team member, or compute instance.
+
+Reason: Laptop-independent handoff is a compelling first use, but provider labs can bundle cloud agents and user-scoped cloud computers. A project-centric workspace can remain valuable across providers, participants, and devices and can accumulate environment, service, policy, provenance, and recovery state that no single agent conversation owns.
+
+Scope: This expands the product north star without changing the current implementation or Phase 0 evidence boundary. The authoritative product model is [`PRODUCT_NORTH_STAR.md`](PRODUCT_NORTH_STAR.md).
+
+### D-034: Lift Off remains the first indispensable workflow, not the entire product boundary
+
+Decision: Preserve the complete local-to-cloud-to-phone-to-local handoff and `safe to close` contract. Treat Lift Off as one way to create or update a durable workspace alongside GitHub-created and empty cloud-native workspaces.
+
+Reason: Active local state remains a differentiated, painful entry problem and proves Lift's most important continuity and recovery primitives. Requiring every future workspace to originate locally would unnecessarily limit cloud-native projects and teams.
+
+### D-035: Mobile readiness includes launching new agent tasks
+
+Decision: Where a provider supports it, first-class laptop-independent compatibility requires the user to launch a completely new task from the provider's phone application into the correct Lift workspace after the laptop is offline. Continuing only a process started before Lift Off is an incomplete capability.
+
+Reason: The workspace, not the laptop relay or one immortal process, must remain the durable execution destination. Mobile initiation turns phone access from monitoring into a genuine command surface.
+
+### D-036: Multi-agent operation is a core capability with user-configurable execution modes
+
+Decision: Support multiple agent tasks in one workspace. Let the user or workspace policy choose shared, isolated, or read-only execution per task. Do not require every agent to use a Git worktree.
+
+Reason: Many users want agents to see and build on the same uncommitted state immediately. Mandatory isolation would make ordinary collaboration feel like branch management. Other tasks require stronger noninterference, so isolated worktrees or copy-on-write environments remain available rather than universal.
+
+Shared-mode safety: Create a recoverable pre-run checkpoint, attribute commands and observed file changes, detect overlapping writes, provide pause and stop controls, retain prior versions, and keep an append-only change journal. Do not claim arbitrary shell writes can always be prevented or silently resolve collisions.
+
+### D-037: Internet, browser, and computer use are workspace capabilities
+
+Decision: Treat controlled outbound internet, headless Chromium, visible browser observation, secure user takeover, persistent project-scoped browser identity, and visual computer use as required product-north-star capabilities. Stage them after the first safe coding handoff rather than treating them as a separate general-computer product.
+
+Reason: Agents cannot complete many development, testing, authentication, research, and operational tasks through files and a terminal alone. These capabilities increase the workspace's usefulness while remaining project-scoped.
+
+Security boundary: Do not migrate a personal browser cookie database, password manager, keychain, or full personal profile. Keep browser identities encrypted, revocable, scoped, excluded from project Git and ordinary Land output, and isolated across workspaces and unrelated agents.
+
+### D-038: GitHub is the source and review backbone, not a workspace prerequisite
+
+Decision: Allow workspace creation from an active local folder, GitHub, or an empty reviewed template. Use GitHub for repository distribution, identity, permissions, branches, pull requests, and explicit sanitized publication without requiring a GitHub repository to use Lift.
+
+Reason: GitHub is the strongest collaboration backbone for cloud-native and team workspaces, while a GitHub clone omits dirty, untracked, approved ignored, environment, service, browser, and task state. Lift should complement GitHub before replacing any Git hosting responsibility.
+
+### D-039: Provider-native applications remain preferred agent surfaces while Lift owns workspace control
+
+Decision: Preserve provider applications as the preferred surfaces for agent conversation, notifications, approvals, and mobile task launch. Lift may provide workspace and task management from mobile or web, including health, participants, modes, permissions, activity, cost, snapshots, stop, and recovery, without building a proprietary coding agent or requiring a replacement chat.
+
+Reason: Users should keep familiar provider workflows while Lift owns the provider-neutral workspace layer. Cross-provider workspace management is distinct from recreating provider conversation products.
+
+### D-040: Solo first, multiplayer architecture, team expansion after repeat use
+
+Decision: Continue validating the first product with one agent-heavy developer and one workspace. Architect workspace identity, membership, task modes, provenance, secrets, browser contexts, and recovery so multiple agents and later human collaborators fit the same model. Add team-lite collaboration only after solo repeat use and payment are observed.
+
+Reason: Multi-agent and team work are central to the platform thesis, but enterprise administration would obscure the first behavioral test. The product can preserve the larger architecture without making teams a Phase 0 requirement.
+
+### D-041: Provider-owned agent computers are replaceable workspace participants
+
+Decision: Design the durable Lift workspace so an agent may execute either inside a Lift-hosted runtime or, where a supported integration exists, on its provider's own cloud computer. In the latter case, the provider computer receives a scoped task view or attachment and returns attributable changes and results; it never becomes the canonical owner of the project.
+
+Reason: Cloud compute, persistence, browsers, mobile launch, and concurrent agents are rapidly becoming bundled agent capabilities. Lift cannot depend on reselling those capabilities. Its durable role is the project-centric state, environment, permissions, participants, provenance, coordination, and recovery layer shared across providers.
+
+Boundary: Do not claim a provider-hosted agent has joined a live Lift workspace unless the integration can authenticate the task, bind the correct project state, enforce the declared mode and grants, report sufficient provenance, and reconcile safely. A GitHub branch or pull request is an external result, not proof of live shared-workspace participation.
+
+Failure condition: If one provider or GitHub supplies a superior persistent team-owned project workspace with local-state import, outside-agent participation, shared and isolated execution, permissions, project browser and secret state, provenance, and recovery, Lift's standalone differentiation may disappear.
 
 ## Pending decisions
 
@@ -202,9 +284,9 @@ Updated hypothesis: the current experimental CLI daemon and provider pairing URL
 
 State evidence from the same run includes immutable Lift-private Git checkpoints `0001` and `0002` bound to the exact encrypted EBS volume. Their bundles and manifests were uploaded as checksummed, versioned private S3 objects and restored from the exact versions into fresh repositories with commit, tree, history-ref, and evidence-file verification.
 
-A subsequent EC2 stop/start changed the guest boot ID. The exact encrypted workspace volume reattached; checkpoint `0002`'s commit and bundle and both proof files recovered; the provider-neutral systemd runner automatically started healthy; and the exact Codex Remote environment ID was preserved. Live server-side verification read back the repaired native project and exact workspace root. On 2026-09-02, a brand-new phone task then bound to the exact folder with `projectId: null`, completed the controlled approval and proof turn, and entered immutable checkpoint `0003`, which restored successfully from exact versioned S3 objects. Fresh live evaluation reported every safe-to-close gate true.
+A subsequent EC2 stop/start changed the guest boot ID. The exact encrypted workspace volume reattached; checkpoint `0002`'s commit and bundle and both proof files recovered; the provider-neutral systemd runner automatically started healthy; and the exact Codex Remote environment ID was preserved. Live server-side verification read back the repaired native project and exact workspace root. On 2026-09-02, a brand-new phone task then bound to the exact folder with `projectId: null`, completed the controlled approval and proof turn, and entered immutable checkpoint `0003`, which restored successfully from exact versioned S3 objects. Fresh live evaluation reported every safe-to-close gate true. Generated fixtures later completed the separate clean and deliberate-conflict live Land evidence recorded under D-032.
 
-Evidence still needed: repeated independent laptop-off runs, network interruption and recovery, revocation, compatible sandbox configuration, provider-policy review, provider-service identity isolation, and a complete conflict-safe Land. The observed single founder run does not make Codex direct Remote launch-ready.
+Evidence still needed: repeated independent laptop-off and Land runs, network interruption and recovery, revocation, compatible sandbox configuration, provider-policy review, provider-service identity isolation, explicit real-workspace manifest review, repeated live conflicts, broader interruption coverage, conflict-resolution UX, and automatic offline-helper continuation. The observed founder runs do not make Codex direct Remote launch-ready.
 
 ### P-003: State transfer implementation
 
@@ -251,3 +333,27 @@ Evidence needed: browser folder-access limitations, background transfer behavior
 Default hypothesis: the personal default remains local Land. Later, an explicitly connected GitHub account may publish a sanitized session branch and pull request for users who want remote review or repository-policy enforcement.
 
 Evidence needed: user demand, permission scope, behavior for forks and protected branches, CI cost, and a reliable guarantee that ignored or workspace-only content can never enter the remote branch.
+
+### P-011: Default multi-agent execution mode
+
+Default hypothesis: shared mode for coordinated solo work, with an obvious per-task choice for isolated or read-only execution and a workspace policy that teams can tighten.
+
+Evidence needed: actual overlap frequency, user understanding, recovery outcomes, and whether users prefer immediate shared state over review-before-integration.
+
+### P-012: First browser capability
+
+Default hypothesis: ship headless Chromium for development testing before visible browser observation, secure takeover, and persistent authenticated profiles.
+
+Evidence needed: design-partner tasks blocked by browser absence, required login flows, credential boundaries, runtime cost, and support burden.
+
+### P-013: GitHub-created workspace authorization
+
+Default hypothesis: use a narrowly scoped GitHub App for repository selection, short-lived credentials, permission-derived team access, and explicit branch or pull-request publication.
+
+Evidence needed: local-only adoption, GitHub organization approval friction, fork and protected-branch behavior, and the minimum permission set for useful team-lite workspaces.
+
+### P-014: External agent-computer attachment contract
+
+Default hypothesis: use supported provider APIs or a narrow authenticated workspace gateway to issue a short-lived task identity and scoped state view, negotiate enforceable capabilities, ingest attributable activity, and reconcile checkpointed results. Treat Git-only export as asynchronous integration rather than shared execution.
+
+Evidence needed: which providers permit external workspace targets, filesystem attachment, task APIs, event/provenance export, scoped credentials, cancellation, and reliable result recovery; latency and conflict behavior when several execution locations participate; and whether customers actually use multiple provider computers on one project.

@@ -21,6 +21,21 @@ sys.path.insert(0, str(SPIKE_ROOT))
 import spike  # noqa: E402
 
 
+class CloudFormationBootstrapTests(unittest.TestCase):
+    def test_lift_user_manager_is_durably_fenced_at_boot(self) -> None:
+        template = (SPIKE_ROOT / "cloudformation.yaml").read_text(encoding="utf-8")
+        disable_linger = "loginctl disable-linger lift"
+        mask_user_manager = "systemctl mask --now user@1001.service"
+
+        self.assertIn(disable_linger, template)
+        self.assertIn(mask_user_manager, template)
+        self.assertLess(
+            template.index(disable_linger),
+            template.index(mask_user_manager),
+        )
+        self.assertNotIn("loginctl enable-linger lift", template)
+
+
 class RuntimeDeploymentTests(unittest.TestCase):
     RUNTIME_SHA = "a" * 64
 
@@ -68,7 +83,8 @@ class RuntimeDeploymentTests(unittest.TestCase):
             "approval_observer.py": ("3" * 64, "0755"),
             "reconstruct.py": ("4" * 64, "0755"),
             "checkpoint.py": ("5" * 64, "0755"),
-            "recipes/codex-headless.json": ("6" * 64, "0644"),
+            "landing.py": ("6" * 64, "0755"),
+            "recipes/codex-headless.json": ("7" * 64, "0644"),
         }
 
     def install_script(self) -> str:
@@ -140,13 +156,14 @@ class RuntimeDeploymentTests(unittest.TestCase):
             script,
         )
         self.assertIn(
-            'test "$(find "$release" -xdev -mindepth 1 -printf . | wc -c)" -eq 7',
+            'test "$(find "$release" -xdev -mindepth 1 -printf . | wc -c)" -eq 8',
             script,
         )
         self.assertIn(
             "approval_observer.py checkpoint.py codex_project.py",
             script,
         )
+        self.assertIn("landing.py", script)
         self.assertNotIn(
             'install -o root -g root -m 0755 "$TMP_DIR/unpack/runner.py" /opt/lift-spike/runner.py',
             script,
@@ -256,6 +273,7 @@ class RuntimeDeploymentTests(unittest.TestCase):
                 "approval_observer.py",
                 "checkpoint.py",
                 "codex_project.py",
+                "landing.py",
                 "recipes/codex-headless.json",
                 "reconstruct.py",
                 "runner.py",
@@ -717,6 +735,12 @@ class StateAndStackValidationTests(unittest.TestCase):
             command,
         )
         self.assertFalse(run.call_args.kwargs["check"])
+
+        prefixed_absence = subprocess.CompletedProcess(
+            [], 254, "", f"aws: [ERROR]: {exact_absence}"
+        )
+        with mock.patch.object(spike, "run", return_value=prefixed_absence):
+            spike.assert_stack_absent_for_create(stack_name)
 
         rejected = (
             subprocess.CompletedProcess([], 0, '{"Stacks": [{}]}', ""),
