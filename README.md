@@ -8,7 +8,7 @@ Lift provides the computer, state, access, and safety boundaries. It does not bu
 
 ## Status
 
-Codex-first technical spike and private-alpha planning. The first runtime is one Ubuntu EC2 VM with an encrypted EBS workspace volume. Lift uses one provider-blind workload runner; Codex is merely the first user-owned recipe executed by it.
+Codex-first Phase 0 spike and private-alpha planning. A real Ubuntu EC2 workspace now accepts direct Codex Remote tasks from ChatGPT on the founder's phone, and three immutable Lift-private Git checkpoints have been restored from exact versioned S3 objects. The laptop-off run is strongly corroborated by a fresh challenge/proof exchange and Mac reboot timestamps, but it is human-attested rather than cryptographically device-attested. One EC2 stop/start preserved the exact encrypted EBS workspace, earlier checkpoints and proof files, and the Codex Remote environment ID. After repairing native-project reconstruction, a fresh phone task passed the exact folder, guarded approval, proof, following checkpoint, restore, and live safe-to-close gates once. Separate provider-service identity and credential isolation, network recovery, revocation, repeated runs, and complete Land remain pre-alpha or promotion gates. Lift uses one provider-blind workload runner; Codex is merely the first user-owned recipe executed by it.
 
 ## The first magical loop
 
@@ -72,4 +72,4 @@ Lift initially moves one coding workspace. It is not:
 
 Lift teleports your active coding workspace to a persistent cloud computer so any coding agent can keep working after you close your laptop.
 
-The first feasibility target is Codex because it is the founder's current provider. Direct phone-to-Linux Codex control remains an experimental capability that must pass a real EC2 pairing spike; the documented fallback uses ChatGPT Desktop as an SSH relay and therefore does not yet satisfy the laptop-off promise.
+The first feasibility target is Codex because it is the founder's current provider. Direct phone-to-Linux control and one full EC2 stop/start recovery now pass as founder evidence, including exact post-restart folder binding, guarded approval observation, proof, and restore-tested following checkpoint. The capability remains experimental and founder-only until separate provider-service identity and credential isolation, network recovery, revocation, provider-policy review, repetition, and complete Land pass. The documented fallback uses ChatGPT Desktop as an SSH relay and therefore does not satisfy the laptop-off promise.

@@ -97,6 +97,8 @@ The runner is responsible for:
 - validating and displaying a user-owned recipe;
 - running approved installation and authentication commands;
 - supervising one arbitrary executable with explicit arguments and working directory;
+- running an optional idempotent post-start preparation command declared by the recipe;
+- evaluating an optional non-mutating semantic-readiness command independently of process health;
 - attaching a raw PTY internally so the connection manager can present provider-owned browser login and pairing through the dashboard;
 - persisting only approved provider-state paths;
 - reporting generic process health, exit status, and restart state;
@@ -107,14 +109,14 @@ The runner does not identify, parse, or speak Codex, Claude, or another provider
 
 Lift does not parse pairing output or proxy the agent conversation, approvals, or notifications. Those remain end to end between the provider process and the user's existing provider application.
 
-A user can select an executable, pinned version, arguments, approved persistent directories, network policy, and restart policy without waiting for a Lift integration. Lift or a provider may distribute reviewed recipe presets, but presets are data rather than provider-specific protocol code. Raw PTY attachment is an advanced diagnostic tool, not part of first-class provider setup.
+A user can select an executable, pinned version, arguments, approved persistent directories, network policy, and restart policy without waiting for a Lift integration. Lift or a provider may distribute reviewed recipe presets and narrow lifecycle connectors, but these never proxy the conversation or change the workspace, transfer, or Land layers. Raw PTY attachment is an advanced diagnostic tool, not part of first-class provider setup.
 
 ### 7. Connection manager and recipes
 
 The connection manager turns provider differences into one product lifecycle:
 
 ```text
-DISCONNECTED -> CONNECTING -> CONNECTED -> STARTING_REMOTE -> REMOTE_READY
+DISCONNECTED -> CONNECTING -> CONNECTED -> STARTING_REMOTE -> REMOTE_RUNNING -> REMOTE_READY
                          \-> NEEDS_REAUTH                    \-> DEGRADED or ERROR
 ```
 
@@ -124,12 +126,14 @@ It is responsible for:
 - opening provider-owned browser or device authentication;
 - storing only encrypted reusable credential state and nonsecret connection metadata;
 - starting the provider-owned native remote command through the generic runner;
-- checking process health and provider registration when an official signal exists;
+- checking three separate layers: process liveness, provider semantic readiness, and end-to-end phone/approval proof;
+- keeping idempotent provider preparation independent of transient Remote or controller presence while readiness performs those live checks;
+- using a reviewed supported signal or an explicitly experimental, version-pinned signal rather than treating process health as registration;
 - recovering, reconnecting, or requesting reauthentication;
 - exposing optional provider deep links or unmodified session URLs;
 - refusing to claim phone readiness when it cannot verify it.
 
-The connection recipe contains provider-specific data and, only when unavoidable, a small sandboxed connector implementation. It does not change workspace, state, or runtime code. See [`EXPERIENCE.md`](EXPERIENCE.md) and [`REMOTE_RUNNER.md`](REMOTE_RUNNER.md).
+The connection recipe contains provider-specific data and, only when unavoidable, a small sandboxed connector implementation. It does not change workspace, transfer, Land, or generic runtime code. A healthy workload with a missing or wrong native project, root, controller, or required approval proof is `DEGRADED`; it is not restarted solely for that condition and never qualifies as `REMOTE_READY`. The current Codex spike keeps its nonsecret connector record under `/home/lift/.codex/lift/<workspace-id>/`, outside the provider-visible project. Before external alpha, the provider service and reusable credentials must also be isolated from the untrusted workspace workload by a separate service identity or an equivalently narrow brokered boundary. See [`EXPERIENCE.md`](EXPERIENCE.md) and [`REMOTE_RUNNER.md`](REMOTE_RUNNER.md).
 
 ### 8. Runtime-provider driver
 
@@ -203,8 +207,12 @@ Do not promise transparent process migration. Record restartable declarations:
 7. Workspace runtime reconstructs the environment.
 8. Secret broker grants scoped runtime access.
 9. Connection manager validates and starts the selected remote workload through the generic runner.
-10. Connection manager verifies provider-owned remote readiness where supported.
-11. Dashboard displays safe to close only after durable state, process health, and required provider readiness checks pass.
+10. The recipe's idempotent preparation step reconstructs provider-owned semantic state, including the exact native project/root binding where required, without depending on transient Remote or controller presence.
+11. Connection manager freshly verifies runner health and reads back native provider readiness, including Remote and controller prerequisites where supported.
+12. A fresh post-baseline provider task confirms its actual project/root binding.
+13. The user completes any required native approval round trip through the provider interface.
+14. Lift creates and restore-tests a durable checkpoint containing the verified evidence.
+15. Dashboard freshly revalidates runner and native provider state and displays safe to close only for a short stated validity window.
 
 ## Return sequence
 
@@ -256,6 +264,8 @@ A recipe may declare:
 - installation executable and arguments;
 - an interactive authentication executable and arguments;
 - long-running executable, arguments, and working directory;
+- an optional idempotent post-start preparation executable and arguments;
+- an optional non-mutating readiness executable with normalized assertions;
 - approved persistent paths and secret references;
 - network and restart policy;
 - provider-owned authentication presentation and readiness checks for a first-class connection.

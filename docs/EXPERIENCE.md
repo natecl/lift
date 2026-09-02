@@ -1,6 +1,6 @@
 # Product Experience
 
-Last updated: 2026-08-31
+Last updated: 2026-09-01
 
 ## Product truth
 
@@ -95,9 +95,12 @@ When pressed, Lift performs the complete sequence without asking the user to ope
 4. Transfer changed state.
 5. Reconstruct missing tools and dependencies.
 6. Start the selected provider's native remote workload.
-7. Verify both process health and provider registration when the provider exposes a supported check.
-8. Confirm the workspace is reachable from the provider's existing phone application.
-9. Display the final safe state.
+7. Run idempotent provider preparation, such as registering the exact native project, without requiring a phone or controller to be online.
+8. Freshly verify runner health and provider semantic prerequisites, including the exact server-side native project ID, root, Remote connection, and controller prerequisite where supported; report controller-side project visibility separately and never infer it from those facts.
+9. If controller-side visibility cannot be observed, explicitly perform the provider's one-time `Add new folder` selection for the exact workspace, then confirm a fresh post-baseline task in the provider's existing phone application is bound to that project and workspace.
+10. Complete a one-time native approval round trip when the supported workflow will require approvals.
+11. Create and restore-test a durable checkpoint containing the verified phone and approval evidence.
+12. Revalidate the live runner and native provider state, then display the final safe state for only a short stated validity window.
 
 The default progress presentation uses plain language:
 
@@ -117,18 +120,22 @@ Do not say “EC2 provisioning,” “mounting EBS,” “starting systemd,” �
 
 Lift must never show “You can close this laptop” merely because file upload finished.
 
-The state requires:
+The state requires, in this order where later evidence depends on earlier evidence:
 
-- all approved local state durably persisted in the cloud;
+- the approved handoff baseline durably persisted in the cloud;
 - the workspace volume mounted and healthy;
-- the selected remote workload running;
+- a fresh live check showing the selected remote workload running and healthy;
 - credentials present and not known to be expired;
-- the provider's native remote registration verified when supported;
+- a fresh live check of the provider's native remote registration and controller prerequisite when supported;
+- the provider's exact native project ID and root read back when project selection is part of the workflow;
+- controller-side project visibility reported as verified only when directly observed, otherwise explicitly `unknown` until a fresh correctly bound task proves the path;
+- a fresh post-baseline task's actual working directory and project binding verified for the claimed compatibility level;
+- a completed native approval round trip when approvals are required for ordinary work;
+- a durable, restore-tested checkpoint created after the task-binding and approval evidence;
 - no required step still depends on the laptop;
-- a recent recovery snapshot or recoverable manifest revision;
 - the local client no longer needed for control-plane progress.
 
-If Lift can verify only process health and not provider registration, the UI must say so and must not promise phone continuation. A connection recipe qualifies for the one-click experience only after its full readiness check is proven.
+If Lift can verify only process health and not provider registration, the UI must say so and must not promise phone continuation. Server-side project registration must likewise not be presented as proof that the controller's project picker can see that project. Paired-controller presence alone is also insufficient because it proves neither project visibility nor current reachability or approval delivery. A cached historical `safeToClose` value is never current truth: the dashboard must recompute it from fresh runner and native-provider observations and expire the displayed result if it is not refreshed. The Phase 0 harness currently emits a 30-second validity window. A connection recipe qualifies for the one-click experience only after its full readiness check is proven.
 
 ## Continue on the phone
 
@@ -210,7 +217,8 @@ Describes how a supported provider uses the generic runner and uniform connectio
 - persistent credential and configuration paths;
 - remote workload command;
 - process health check;
-- provider registration check when officially available;
+- optional idempotent post-start preparation command;
+- provider registration check from a reviewed supported or explicitly experimental/version-pinned signal;
 - recovery and reauthentication behavior;
 - optional provider-owned deep link or session URL extraction;
 - declared mobile capabilities and limitations.
@@ -227,12 +235,13 @@ CONNECTING
 CONNECTED
 NEEDS_REAUTH
 STARTING_REMOTE
+REMOTE_RUNNING
 REMOTE_READY
 DEGRADED
 ERROR
 ```
 
-Only `REMOTE_READY` qualifies for the “safe to close” message.
+`REMOTE_RUNNING` means the provider process is live but semantic or end-to-end readiness is not yet proven. Missing or wrong native project/root, absent controller, stale authentication, or unknown required approval behavior moves the connection to `DEGRADED` without forcing a restart of an otherwise healthy process. Only `REMOTE_READY` qualifies for the “safe to close” message.
 
 ## Connection security model
 
@@ -270,7 +279,11 @@ The official OpenAI documentation currently establishes:
 - the documented phone flow still depends on an awake desktop host;
 - direct App Server WebSocket exposure is experimental and not a production integration surface.
 
-Current local CLI commands suggest a newer headless daemon and pairing path. Lift must prove that path on Ubuntu EC2 before Codex receives the `Direct phone continuation` badge or the safe-to-close claim.
+The current experimental CLI daemon and provider-owned pairing URL have now carried real phone tasks directly to a real Ubuntu EC2 workspace. A founder laptop-off run is strongly corroborated by a fresh challenge/proof exchange and Mac reboot timestamps, but it is human-attested rather than cryptographically device-attested. One EC2 stop/start changed the guest boot ID while preserving the exact encrypted workspace volume, earlier checkpoints and proof files, a healthy automatically restarted provider-neutral runner, and the exact Codex Remote environment ID. A following fresh phone task completed the live observed approval-and-proof turn, entered restore-tested checkpoint `0003`, and produced a fresh `safeToClose: true` evaluation.
+
+In the tested mobile picker, `Add new folder` creates a controller task bound to the selected canonical folder while leaving the experimental App Server `projectId` unset. Lift must present that as folder continuity, not as project visibility: the separately registered server project may remain healthy while the mobile task is explicitly `project-unassigned`. The safe-to-close verifier requires the one fresh task's exact `cwd`, null project assignment, resume-time runtime root, exact two-command `/bin/bash -lc` envelope, unchanged approval guard, and passive approval lifecycle evidence before the folder binding is considered verified.
+
+The first post-restart phone attempts then exposed a second failure: the daemon was live but its native project registry was empty, so new tasks used synthetic projectless paths; older tasks also entered an approval loop with no usable approval control. The server-side remedy is now deployed and live-readback verifies the exact native project/root, connected Remote state, and one registered controller. The phone project picker nevertheless showed only `Chat` and `Add new folder`, so controller-side visibility remains unknown and Lift must preserve the explicit folder-binding model instead of claiming that `lift` is listed or assigned. The repaired path has now passed end to end once: exact fresh-task folder binding, post-restart proof, guarded native approval round trip, restore-tested following checkpoint, and fresh safe-to-close evaluation. Codex still must not receive the `Direct phone continuation` badge for alpha until provider-service identity and credential isolation, network recovery, revocation, repeated laptop-off runs, full Land, and provider-policy review pass their separate gates.
 
 Official references:
 

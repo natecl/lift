@@ -1,6 +1,6 @@
 # Provider-Neutral Remote Workloads
 
-Last updated: 2026-08-31
+Last updated: 2026-09-01
 
 ## Decision
 
@@ -69,6 +69,8 @@ type RemoteWorkload = {
   install?: ProcessSpec;
   auth?: ProcessSpec;
   run: ProcessSpec;
+  prepare?: ProcessSpec;
+  readiness?: JsonProcessSpec;
   workingDirectory: string;
   persistentPaths: string[];
   secretRefs: string[];
@@ -103,6 +105,15 @@ auth:
 run:
   executable: my-agent
   arguments: [remote]
+prepare:
+  executable: provider-connector
+  arguments: [register, --workspace, /workspace]
+readiness:
+  executable: provider-connector
+  arguments: [status, --workspace, /workspace]
+  assertions:
+    ready: true
+    workspace: /workspace
 workingDirectory: /workspace
 persistentPaths:
   - /home/lift/.config/my-agent
@@ -135,11 +146,18 @@ For first-class providers, the recipe also declares a uniform connection lifecyc
 - how reauthentication and process recovery work;
 - whether a provider-owned deep link or session URL may be shown.
 
+`run` establishes the long-lived workload. An optional idempotent `prepare` step runs after that process is reachable and reconstructs durable provider-owned semantic state, such as registering the exact native project through a documented or inspected provider API. Preparation must not require transient Remote connectivity or a paired controller. An optional `readiness` step emits normalized JSON and performs those live checks in addition to verifying workspace identity. The supervisor treats these signals differently:
+
+- failed liveness increments the process failure threshold and may restart the workload;
+- failed readiness keeps the process running, reports `ready: false`, and blocks `safe to close`;
+- neither step may broaden writable paths or silently copy credentials;
+- connectors must use provider-owned APIs and must never patch a provider database directly.
+
 ## Codex as the first recipe
 
 Codex is the first real workload used to validate the runner, not a special integration in the Lift core.
 
-The current local `codex-cli 0.146.0`, inspected on 2026-08-31, exposes candidate experimental commands:
+The historical local `codex-cli 0.146.0`, inspected on 2026-08-31, exposed candidate experimental commands:
 
 ```text
 codex app-server daemon bootstrap --remote-control
@@ -147,7 +165,9 @@ codex remote-control start
 codex remote-control pair
 ```
 
-A Codex recipe can install the CLI and declare the daemon start command. In the finished product, the Connections tab must present the provider-owned login and any supported pairing flow without asking the user to open a terminal. Lift does not collect OpenAI passwords or interpret Remote conversation messages.
+A Codex recipe can install the CLI and declare the daemon start command. The current spike pins Codex `0.152.1` and uses a recipe-scoped connector over the live Unix-domain App Server control socket. Its preparation command idempotently registers the exact Lift workspace as a native Codex project and configures trust for only that path without requiring Remote or a controller; its separate readiness command reads that project back and requires connected Remote state plus paired-controller presence. The connector's nonsecret workspace-binding and create-idempotency record lives outside the project tree at `/home/lift/.codex/lift/<workspace-id>/codex-project.json`, with `0700` parent directories and a `0600` file. Its `project/*`, `config/value/write`, and Remote status/client calls come from the experimental version-pinned App Server schema, not a stable documented production contract. The connector validates that schema and all relevant versions before writing provider state, has no public listener or direct-SQLite fallback, and does not interpret Remote conversation messages.
+
+A nonempty paired-client result proves only that a controller is registered. It does not prove that the phone is currently reachable, that the client is recent, or that an approval request can complete. Those remain separate end-to-end gates. In the finished product, the Connections tab must present the provider-owned login and any supported pairing flow without asking the user to open a terminal.
 
 Desired flow:
 
@@ -158,7 +178,7 @@ ChatGPT mobile
     -> Lift-owned persistent workspace
 ```
 
-This path remains experimental until verified on a real Ubuntu EC2 host and phone. The official OpenAI documentation currently describes phone Remote through an awake Mac or Windows desktop host. It separately documents the desktop app starting Codex App Server on an SSH host.
+This path remains experimental. One founder-only Phase 0 run now verifies direct phone execution against a real Ubuntu EC2 workspace and strongly corroborates a laptop-off sequence through a fresh challenge/proof exchange and Mac reboot timestamps. That evidence is human-attested rather than cryptographically device-attested. A subsequent EC2 stop/start changed the guest boot ID while preserving the exact EBS workspace, earlier checkpoints and proof files, and exact Codex Remote environment ID. It also exposed a false-positive readiness bug: the daemon was live but no native Codex project was registered, so new mobile tasks fell into projectless paths outside the service's narrow write boundary. The version-pinned connector now registers and reads back the exact project, and the generic runner distinguishes `healthy` from semantic `ready`. After that repair, one fresh post-baseline phone task passed exact folder/runtime binding, guarded approval observation, proof, following checkpoint, exact-version restore, and fresh safe-to-close evaluation. Separate provider-service identity and credential isolation, network recovery, revocation, repetition, complete Land, and provider-policy gates remain open. The official OpenAI documentation currently describes phone Remote through an awake Mac or Windows desktop host and separately documents the desktop app starting Codex App Server on an SSH host.
 
 The stable fallback is:
 
@@ -185,13 +205,19 @@ Official references:
 4. Start the provider's remote-control daemon.
 5. Confirm the unmodified pairing output and determine whether it has a supported nonterminal presentation.
 6. Pair ChatGPT mobile without Lift parsing the exchange.
-7. Start work from the phone against the Lift workspace.
-8. Disconnect the provisioning laptop.
-9. Restart the supervised process and test provider reconnection.
-10. Replace the internal PTY steps with a Connections-tab flow before calling Codex first-class support.
-11. Stop and start EC2, confirm EBS state, and restart the recipe semantically.
+7. Register and read back the exact native project through the pinned provider API without making registration depend on Remote or controller presence.
+8. Require a fresh live runner and native-Remote readiness result.
+9. Start a brand-new post-baseline phone task against that project and verify its actual project ID, working directory, and runtime roots.
+10. Complete a controlled approval request and response through the native provider UI.
+11. Create and restore-test a durable checkpoint containing the phone and approval evidence, then revalidate live readiness before reporting safe-to-close.
+12. Disconnect the provisioning laptop.
+13. Restart the supervised process and test provider reconnection.
+14. Replace the internal PTY steps with a Connections-tab flow before calling Codex first-class support.
+15. Stop and start EC2, confirm EBS state, and restart the recipe semantically.
+16. Reconstruct and read back the exact native provider project before declaring readiness.
+17. Create a fresh mobile task in that project and write a post-restart proof inside the exact Lift workspace.
 
-The spike succeeds only if the provider-owned connection survives without an awake desktop relay. If it does not, Lift remains provider-neutral, but Codex cannot yet deliver the full phone-with-laptop-off experience through its supported surface.
+The direct transport, real-EC2 workspace, structural stop/start recovery, and server-side project/readiness reconstruction portions of the spike now pass once. The overall promotion test succeeds only after a fresh post-baseline mobile task is verified against the exact project/root, its post-restart proof and approval round trip complete, a following checkpoint is restored successfully, and the provider-owned connection survives the remaining recovery and repeated laptop-off scenarios without an awake desktop relay. Separate provider-service identity and credential isolation must also pass before external alpha use. Until then, Lift remains provider-neutral and Codex remains an experimental recipe rather than a supported phone-with-laptop-off surface.
 
 ## Claude as another recipe
 

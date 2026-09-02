@@ -1,0 +1,142 @@
+{
+  "schemaVersion": 1,
+  "id": "codex-headless-experimental",
+  "displayName": "Codex Remote (experimental)",
+  "maturity": "experimental",
+  "authentication": {
+    "executable": "/home/lift/.local/bin/codex",
+    "arguments": [
+      "login",
+      "--device-auth"
+    ],
+    "interactive": true
+  },
+  "pairing": {
+    "executable": "/home/lift/.local/bin/codex",
+    "arguments": [
+      "remote-control",
+      "pair",
+      "--json"
+    ],
+    "interactive": true,
+    "ephemeralOutput": true
+  },
+  "processMode": "detached",
+  "run": {
+    "executable": "/home/lift/.local/bin/codex",
+    "arguments": [
+      "remote-control",
+      "start",
+      "--json"
+    ],
+    "timeoutSeconds": 120,
+    "jsonEquals": {
+      "/mode": "daemon",
+      "/status": "connected",
+      "/timedOut": false,
+      "/daemon/managedCodexVersion": "0.152.1",
+      "/daemon/cliVersion": "0.152.1",
+      "/daemon/appServerVersion": "0.152.1",
+      "/daemon/socketPath": "/home/lift/.codex/app-server-control/app-server-control.sock"
+    },
+    "jsonNonEmpty": [
+      "/environmentId"
+    ]
+  },
+  "prepare": {
+    "executable": "/usr/bin/python3",
+    "arguments": [
+      "/opt/lift-spike/codex_project.py",
+      "register",
+      "--name",
+      "lift"
+    ],
+    "timeoutSeconds": 60,
+    "jsonEquals": {
+      "/configured": true,
+      "/experimentalApi": true,
+      "/provider": "codex",
+      "/workspace": "/home/lift/workspaces/lift-ec2-spike",
+      "/project/name": "lift",
+      "/project/root": "/home/lift/workspaces/lift-ec2-spike",
+      "/project/trusted": true,
+      "/daemon/status": "running",
+      "/daemon/managedCodexVersion": "0.152.1",
+      "/daemon/cliVersion": "0.152.1",
+      "/daemon/appServerVersion": "0.152.1"
+    },
+    "jsonNonEmpty": [
+      "/project/id"
+    ]
+  },
+  "health": {
+    "executable": "/home/lift/.local/bin/codex",
+    "arguments": [
+      "app-server",
+      "daemon",
+      "version"
+    ],
+    "timeoutSeconds": 30,
+    "intervalSeconds": 30,
+    "failureThreshold": 3,
+    "jsonEquals": {
+      "/status": "running",
+      "/backend": "pid",
+      "/managedCodexVersion": "0.152.1",
+      "/cliVersion": "0.152.1",
+      "/appServerVersion": "0.152.1",
+      "/socketPath": "/home/lift/.codex/app-server-control/app-server-control.sock"
+    }
+  },
+  "readiness": {
+    "executable": "/usr/bin/python3",
+    "arguments": [
+      "/opt/lift-spike/codex_project.py",
+      "status",
+      "--name",
+      "lift"
+    ],
+    "timeoutSeconds": 30,
+    "jsonEquals": {
+      "/configured": true,
+      "/readyForPhoneProof": true,
+      "/experimentalApi": true,
+      "/provider": "codex",
+      "/serverProjectRegistered": true,
+      "/controllerProjectVisibility/status": "unknown",
+      "/controllerProjectVisibility/verified": false,
+      "/workspace": "/home/lift/workspaces/lift-ec2-spike",
+      "/project/name": "lift",
+      "/project/root": "/home/lift/workspaces/lift-ec2-spike",
+      "/project/trusted": true,
+      "/remote/status": "connected",
+      "/remote/controllerPresent": true,
+      "/daemon/status": "running",
+      "/daemon/managedCodexVersion": "0.152.1",
+      "/daemon/cliVersion": "0.152.1",
+      "/daemon/appServerVersion": "0.152.1"
+    },
+    "jsonNonEmpty": [
+      "/project/id",
+      "/remote/environmentId"
+    ]
+  },
+  "stop": {
+    "executable": "/home/lift/.local/bin/codex",
+    "arguments": [
+      "remote-control",
+      "stop",
+      "--json"
+    ],
+    "timeoutSeconds": 30
+  },
+  "persistentPaths": [
+    "/home/lift/.codex",
+    "/home/lift/.cache/codex"
+  ],
+  "networkPolicy": {
+    "outbound": "internet",
+    "metadataAccess": false
+  },
+  "restartPolicy": "on-failure"
+}

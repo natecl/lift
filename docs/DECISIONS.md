@@ -78,7 +78,7 @@ Reason: A full Linux VM provides the fewest constraints for PTYs, arbitrary tool
 
 ### D-013: Codex first recipe, provider-blind core
 
-Decision: Validate Codex first because it is the founder's available provider. Run it as a reviewed recipe through the same generic workload supervisor used for any executable. Do not add Codex protocol code to Lift.
+Decision: Validate Codex first because it is the founder's available provider. Run it as a reviewed recipe through the same generic workload supervisor used for any executable. Do not add Codex conversation, approval-transport, or Remote-relay protocol code to Lift; isolate any provider setup and readiness calls in the reviewed connection recipe.
 
 Reason: The first recipe should match the founder's real workflow without coupling process supervision, compute, state transfer, or reconciliation to OpenAI-specific behavior.
 
@@ -90,7 +90,7 @@ Reason: Official OpenAI documentation currently establishes mobile pairing throu
 
 ### D-015: Agent neutrality is one user-controlled remote workload runner
 
-Decision: Allow a user to choose an executable, version, installation command, authentication command, run command, approved persistent state directories, network policy, and restart policy through one generic recipe. Lift may curate presets as data but will not implement provider-specific remote adapters.
+Decision: Allow a user to choose an executable, version, installation command, authentication command, run command, approved persistent state directories, network policy, and restart policy through one generic recipe. Lift may curate presets and narrow lifecycle connectors, but will not implement provider-specific conversation or remote-transport adapters.
 
 Reason: Lift can supervise provider-owned remote commands without knowing their protocols. Mobile pairing and session semantics remain end to end between the user and provider and must not be faked or normalized.
 
@@ -136,6 +136,44 @@ Decision: Place each provider-visible cloud working copy at a real path beneath 
 
 Reason: The ChatGPT Remote folder picker accepted a real clone at `/home/lift/Workspace` but refused a symlink from that path to `/workspace`. Its default `Chat` choice created an empty projectless directory, causing the first phone task to fail safely outside the intended repository. A canonical real path and explicit `cwd` check remove both failure modes.
 
+### D-023: Provider-specific setup is recipe-scoped, and readiness is not liveness
+
+Decision: Keep the workload supervisor provider-blind while allowing a reviewed, version-pinned recipe to declare separate `prepare` and `readiness` commands. A provider connector may use the provider-owned control API to register the exact persistent workspace and configure only that root. This idempotent preparation must not depend on transient Remote connectivity or controller presence; the non-mutating readiness command checks those conditions and returns normalized nonsecret evidence. Server-side project registration and controller-side project visibility are separate facts: when the controller's saved-folder registry cannot be observed, readiness must report visibility as `unknown` and unverified rather than infer it from project registration or paired-controller presence. The founder flow may then explicitly request the one-time provider-native `Add new folder` selection for the exact workspace, but production one-click compatibility remains unproven until that setup is supported or eliminated. The connector must not mutate provider databases directly. Process liveness may trigger restart; a readiness failure must block `safe to close` without creating a restart loop. Safe-to-close additionally requires a fresh live runner/native-provider check, a fresh post-baseline phone-task binding, a native approval round trip, and a durable checkpoint created afterward.
+
+Reason: After the first EC2 stop/start, the Codex daemon was healthy and retained its Remote environment, but its native project registry was empty. New mobile tasks therefore opened projectless workspaces outside Lift's writable root. Missing approval controls were also observed, but their exact cause is not yet proven. Registering and reading back the exact workspace through the version-pinned Codex App Server project API reconstructs server-side semantic state while preserving one generic supervisor and a narrow filesystem boundary. The phone picker subsequently showed only `Chat` and `Add new folder`, demonstrating that App Server project registration does not itself prove controller-side visibility. Treating either daemon health or server registration as complete phone readiness produced a false positive.
+
+### D-024: Provider connector records stay outside the project; service identity isolation is a pre-alpha gate
+
+Decision: Store the Codex connector's nonsecret workspace binding and create-idempotency record at `/home/lift/.codex/lift/<workspace-id>/codex-project.json`, not inside the provider-visible project. Before inviting external alpha users, separate the provider service and reusable credentials from the untrusted workspace workload with a distinct Unix identity or an equivalently narrow credential broker.
+
+Reason: Keeping connector state outside the workspace prevents it from entering project checkpoints, Land output, or normal Git history. File placement and mode bits alone do not isolate credentials while the provider daemon and arbitrary workspace process share the same operating-system identity.
+
+### D-025: Phone readiness evidence is bound to one canonical challenge
+
+Decision: Represent each native-phone proof and approval attempt as one exact, versioned challenge whose canonical JSON has a SHA-256 identity. Bind the fresh-thread evidence, proof bytes, approval item, durable checkpoint, and final safe-to-close evidence to that identity. A normal re-arm removes any post-restart alias; post-restart verification requires its alias to equal the active challenge exactly. The proof source selects one fixed relative path and checkpoint label, and the verifier rejects extra fields, alternate paths, stale aliases, unsupported approval policies, network-enabled approvals, and mismatched project or runtime roots.
+
+Reason: Independent booleans can be assembled from different attempts, and a stale post-restart challenge can otherwise authorize a newer transition. One canonical identity makes replay, cross-challenge mixing, wrong-source checkpointing, and permissive approval fallback fail closed.
+
+### D-026: Runtime actions bind local state to live CloudFormation resources
+
+Decision: Before operating on a deployed workspace, validate the persisted run, AWS identity, stack identity, outputs, and canonical paths, then re-read the live CloudFormation stack. Require the exact stored stack ID and name, a completed safe status, the expected immutable parameters, byte-for-byte matching outputs, and exact physical bindings for the EC2 instance, EBS volume, and S3 transfer bucket. Revalidate the selected Ubuntu AMI against Canonical ownership, availability, and architecture rather than trusting a cached ID.
+
+Reason: Locally persisted identifiers are routing hints, not authority. A stale, edited, cross-account, or partially replaced state file must not redirect lifecycle commands, proof collection, or checkpoint writes to unrelated infrastructure.
+
+### D-027: Phase 0 approval confirmation combines live observation and independent history, but remains an inference
+
+Decision: Do not treat a completed `commandExecution` item as standalone approval proof. Before the Codex founder prompt, start a challenge-specific passive observer as a hardened root-owned transient systemd service from checksum-verified, root-owned runtime files. Require it to initialize, prove an empty post-baseline scan, and write a root-owned private readiness record before arming is exposed to the user. The observer never answers an App Server request and must remain present through the exact approval request, matching resolution, successful canary, successful proof command, and completed full turn. Bind its root-owned evidence to the challenge, policy guard, baseline, environment, native project, `cwd`, thread, turn, request, both item identities, both command hashes, and event order.
+
+Separately, keep the historical verifier independent: it must re-read the completed new task and require one turn, exact `on-request` policy, `user` reviewer, network-disabled sandbox, and exactly the environment-cleared HTTPS canary followed by the independently reconstructed proof command, both agent-originated with null plugin/script provenance and no unreviewed tool or mutation items. Capture a SHA-256 guard over active config, rules, hooks, the complete bounded `plugin/list` response, and managed requirements before arming and require it unchanged during verification. Installed plugins may remain enabled, but every effective hook and every plugin/MCP execution or plugin/script command provenance remains disallowed in the proof turn. This binds the observed plugin environment; it does not prove plugin-free model context or immutable remote plugin content. High-assurance promotion requires isolated plugin-disabled execution or content-addressed pinned bundles. Both evidence paths must agree and bind into the checkpoint and safe-to-close chain. Observer schema v8 and the independent historical verifier agreed on one live EC2 phone task on 2026-09-02, closing H3's single-run feasibility gate without changing the guarded-inference limitation.
+
+Reason: A later `thread/read` loses the request and resolution events. A subscribed second App Server client can observe `item/commandExecution/requestApproval`, `serverRequest/resolved`, both exact command lifecycles, and `turn/completed`, which is stronger than completed history and prevents stopping verification after only the canary. The public protocol still does not reveal the decision payload or responder connection identity, however, so even the combined result supports only `request observed -> request resolved -> exact command succeeded`, not “this phone user tapped Approve.” Root-owned observation protects the evidence from the workspace, but the provider daemon and workload still share the `lift` identity; provider-service identity separation remains a pre-alpha gate, and provider-supported audit evidence is required for production-grade decision attribution.
+
+### D-028: Codex mobile Add Folder is a folder binding, not a project assignment
+
+Decision: Model the tested Codex mobile `Add new folder` path as `folder-bound-project-unassigned`. Keep the App Server-registered Lift project as a separate readiness fact; do not claim the mobile task is project-bound when its provider record has `projectId: null`. A phone proof must be the only post-baseline task for the exact canonical `cwd`, retain `projectId: null` across list, read, and resume, and return the exact runtime root from `thread/resume`. Its two completed commands must have source `unifiedExecStartup` and decode to exactly `[/bin/bash, -lc, EXPECTED_INNER]`; Lift hashes and compares the inner commands, rejects any shell or argument variation, and still requires the independent approval observer, unchanged approval guard, empty active rules, exact item order, and no additional tool or mutation.
+
+Reason: The live mobile task created after `Add new folder` used the intended EBS-backed `cwd` but no experimental project assignment. Treating the registered server project ID as the task's project ID caused a false rejection. Treating `cwd` alone as sufficient would be too permissive, so the compatibility path is explicit, versioned, and fail-closed around the complete observed task and command envelope.
+
 ## Pending decisions
 
 ### P-001: Hosted versus BYO cloud first
@@ -146,9 +184,13 @@ Evidence needed: trust objections, compute economics, and willingness to connect
 
 ### P-002: Codex headless remote-control viability
 
-Updated hypothesis: the current experimental CLI daemon and provider pairing URL can connect ChatGPT mobile directly to a persistent Linux workspace. A local Ubuntu precursor now passes pairing, phone task execution, one-time approvals, Git checkpoint, and clean return.
+Updated hypothesis: the current experimental CLI daemon and provider pairing URL can connect ChatGPT mobile directly to a persistent Linux workspace. A real Ubuntu EC2 run now passes direct pairing and phone task execution against the exact EBS-backed workspace. A fresh challenge issued before the founder shut down the Mac was satisfied from the phone, and later Mac reboot timestamps strongly corroborate that the computer was off; this remains human-attested evidence, not cryptographic device attestation.
 
-Evidence still needed: real Ubuntu EC2 repetition, network interruption, literal laptop disconnection, guest and EC2 stop/start recovery, revocation, compatible sandbox configuration, and provider-policy review.
+State evidence from the same run includes immutable Lift-private Git checkpoints `0001` and `0002` bound to the exact encrypted EBS volume. Their bundles and manifests were uploaded as checksummed, versioned private S3 objects and restored from the exact versions into fresh repositories with commit, tree, history-ref, and evidence-file verification.
+
+A subsequent EC2 stop/start changed the guest boot ID. The exact encrypted workspace volume reattached; checkpoint `0002`'s commit and bundle and both proof files recovered; the provider-neutral systemd runner automatically started healthy; and the exact Codex Remote environment ID was preserved. Live server-side verification read back the repaired native project and exact workspace root. On 2026-09-02, a brand-new phone task then bound to the exact folder with `projectId: null`, completed the controlled approval and proof turn, and entered immutable checkpoint `0003`, which restored successfully from exact versioned S3 objects. Fresh live evaluation reported every safe-to-close gate true.
+
+Evidence still needed: repeated independent laptop-off runs, network interruption and recovery, revocation, compatible sandbox configuration, provider-policy review, provider-service identity isolation, and a complete conflict-safe Land. The observed single founder run does not make Codex direct Remote launch-ready.
 
 ### P-003: State transfer implementation
 

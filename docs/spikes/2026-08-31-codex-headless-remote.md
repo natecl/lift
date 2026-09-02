@@ -1,8 +1,13 @@
 # Codex Headless Remote Feasibility Spike
 
 Date: 2026-08-31
+Last updated: 2026-09-02
 
-Status: partial pass. A real ChatGPT iPhone task paired directly to a headless Linux Codex App Server, edited the intended persistent workspace, completed provider-owned approvals, and returned through a clean Git fast-forward. EC2, a truly laptop-off run, network interruption, guest restart, revocation, and production-support policy remain pending.
+Status: single-run founder feasibility pass, not launch-ready. Direct ChatGPT phone control works against both the local Ubuntu precursor and a real Ubuntu EC2 workspace on encrypted EBS. The founder's laptop-off run is strongly corroborated by a fresh challenge/proof exchange and Mac reboot timestamps, but it is not cryptographic device attestation. One EC2 stop/start recovered the exact workspace, earlier checkpoints and proof files, the provider-neutral runner, and the same Codex Remote environment. After server-side native-project reconstruction, a brand-new phone task bound to the exact EBS folder, completed a live observed approval-and-proof turn, and produced checkpoint `0003`, which passed exact-version S3 restore verification. Fresh live evaluation reported every safe-to-close gate true. Network recovery, revocation, repeated independently observed laptop-off runs, complete Land, provider-service isolation, and production-support policy remain pending.
+
+The local-to-cloud capture in this harness is deliberately fixture-only: it rejects any workspace without the exact generated disposable marker before creating its private ledger. A production manifest-review and explicit untracked/ignored-file selection flow is not implemented by this spike.
+
+The disposable bootstrap also downloads the official AWS CLI archive and Codex installer without pinning the installer bytes to reviewed signatures or digests. Resulting versions and runtime files are checked, but alpha reuse requires a signed/content-addressed image or cryptographic verification before root execution.
 
 ## Question
 
@@ -118,7 +123,7 @@ The cloud working copy was checkpointed as commit `dd27755` (`Record paired iPho
 
 The provider login and installation survived the initiating shell exit because `/home/lift` was persistent. The App Server process was stopped and relaunched, upgrading the active CLI/App Server from `0.151.0` to `0.152.0`; the same persistent provider home could reconnect and complete the successful phone task. The test did require reopening a fresh provider pairing URL and passing the provider-owned Remote unlock gate, so transparent controller reattachment is not yet proven.
 
-Still required, in order:
+At the end of the local precursor, the remaining tests were:
 
 1. interrupt and restore network access;
 2. restart the Linux guest while preserving the provider home and workspace volumes;
@@ -131,11 +136,81 @@ The Docker precursor also exposed a sandbox prerequisite. Bundled `bubblewrap` c
 
 The product may promise filesystem and session continuity only for the state it can durably reconstruct. It must not promise suspended RAM or invisible provider behavior.
 
+### 7. Real Ubuntu EC2 and direct phone control — pass at transport and workspace boundary
+
+On 2026-09-01, the experimental path was repeated on a real x86_64 Ubuntu EC2 instance. The provider-visible working copy was a real directory beneath `/home/lift/workspaces` on a separate encrypted EBS workspace volume. The Codex Remote environment reported the exact intended cloud `cwd`, and ChatGPT on the founder's phone controlled that environment directly rather than routing through ChatGPT Desktop as an SSH relay.
+
+This passes the narrower question of whether the current Codex Remote surface can carry a real phone task to the intended EC2 workspace. It does not establish provider support, repeatability, or end-to-end native phone recovery after a lifecycle event.
+
+### 8. Laptop-off challenge — strongly corroborated founder evidence, not attestation
+
+Immediately before the shutdown attempt, Lift armed a fresh unpredictable nonce tied to the provider environment, exact expected cloud `cwd`, and one proof path. The founder then reported shutting down the Mac completely, opened the already paired environment on the phone, and caused the exact challenge object to be written into the EBS-backed workspace. The observed file matched the required nonce, source, path, ownership, type, and content after the challenge issue time. Later Mac boot timestamps post-dated the challenge and proof sequence.
+
+This combination strongly corroborates that the phone continued the EC2 workspace while the Mac was off. It is still a human-attested founder test: Lift did not have a hardware-rooted power-state signal, an independent observer, or cryptographic device attestation. Record it as meaningful Phase 0 evidence, not as a public `Verified` compatibility claim.
+
+### 9. Immutable cloud checkpoints and exact restore — pass for three revisions
+
+The run created three immutable Lift-private Git checkpoints: `0001` before the shutdown proof, `0002` after it, and `0003-post-restart-phone-proof` after the successful post-restart phone and approval evidence. The checkpoint process used Lift-private refs and indexes rather than moving the user's branch, refs, or index.
+
+For all three revisions, Lift produced a Git bundle and manifest, computed checksums, and stored them as versioned private S3 objects. The verifier downloaded each exact object version into a clean location, checked the object checksums, restored the bundle into a fresh bare repository, and verified the expected commit, tree, retained history refs, and exact evidence file. Checkpoint `0003` is commit `674bd2722b961caf1e91db98f582330b6b4a54b5` with restored tree `df3bcde602bd34463dc70ffeb549bc4ae242d9ee`. This proves recoverability of those captured revisions independently of the live working directory.
+
+The subsequent stop/start test below proves structural recovery of the same EC2 workspace and Codex Remote environment for one run. It does not by itself prove native phone access after restart, the local Land transaction, or conflict behavior.
+
+### 10. EC2 stop/start and end-to-end phone recovery — single-run pass
+
+The EC2 instance was stopped and started rather than merely rebooted in place. The guest boot ID changed, demonstrating a new guest boot. After the instance returned through Systems Manager:
+
+- the exact encrypted workspace EBS volume was reattached and mounted at the expected workspace path;
+- checkpoint `0002`'s expected commit and bundle were present and verified;
+- both the original phone proof and the laptop-off proof were recovered with the workspace;
+- the provider-neutral systemd workload runner automatically started and reported healthy; and
+- Codex Remote reported the exact same provider environment ID used before the stop.
+
+This first passed structural EC2 stop/start recovery: durable state, checkpoint identity, generic supervision, and provider environment identity all survived while the guest process state was reconstructed. On 2026-09-02, the following fresh phone task then passed against the preserved environment and exact EBS folder, and its evidence entered restore-tested checkpoint `0003`. That closes the single-run end-to-end recovery question without establishing repeatability or official provider support.
+
+### 11. Native project reconstruction and semantic readiness — single-run end-to-end pass
+
+The first post-restart mobile attempts failed even though systemd and Codex Remote appeared healthy. A new task reported a workspace error. Older tasks repeatedly requested write approval outside the workspace, but no actionable approval control appeared. Inspection found that Codex had retained the Remote environment while its native project registry contained zero projects and zero project roots. Mobile consequently opened synthetic directories beneath `/home/lift/Documents/Codex/...`, which are intentionally read-only under Lift's service sandbox.
+
+Lift now treats that state as not ready. The generic runner gained recipe-declared `prepare` and `readiness` process specifications. The currently pinned Codex `0.152.1` connector validates the experimental App Server schema and connects to the live provider-owned control socket. Its idempotent `prepare` command creates or reads the server-side native project named `lift`, binds it to `/home/lift/workspaces/lift-ec2-spike`, and configures trust for only that exact path without requiring transient Remote or controller presence. Its separate `readiness` command reads that project back and requires Remote to be connected with at least one paired controller. Because that API does not expose the controller's saved-folder picker, the connector now reports `serverProjectRegistered: true` while keeping `controllerProjectVisibility` explicitly `unknown` and unverified. The connector stores only a nonsecret workspace-binding and create-idempotency record at `/home/lift/.codex/lift/lift-ec2-spike/codex-project.json`, outside the workspace, and never mutates Codex's SQLite database.
+
+Read-only verification at `2026-09-01T19:28:58Z` observed:
+
+- systemd workload active with `healthy: true` and semantic `ready: true`;
+- Codex CLI, managed binary, and App Server all pinned at `0.152.1`;
+- Remote status `connected` with environment `env_e_6a96f94562d083289769bba32f8614d7` and one registered controller;
+- native project `01a05e65-3e1a-7e81-bc34-9bbc868b6155` present and read back through App Server;
+- exact project root and service working directory `/home/lift/workspaces/lift-ec2-spike` matching the EBS-backed workspace;
+- exact workspace, Codex state, and Codex cache paths writable while projectless home paths remain read-only; and
+- no direct mutation of Codex's state database.
+
+Existing projectless mobile tasks are not repaired by assigning a project ID because their stored working directories and sandbox histories remain wrong. The tested recovery used the already saved exact folder connection and a brand-new post-baseline mobile task. App Server list/read/resume showed the exact canonical `cwd`, `projectId: null`, and exact runtime roots, so this is a verified folder binding rather than evidence that the separately registered server project became visible in the mobile picker. The controlled approval canary and proof command both completed in that task, the live and historical verifiers agreed, the following checkpoint restored successfully, and fresh runner/Remote evaluation reported `safeToClose: true`. Controller-side project visibility remains explicitly unknown, and separate provider-service identity and credential isolation remain pre-alpha security gates.
+
+### Approval-event observer — deployed and live-proven once
+
+Codex 0.152 lets a subscribed second App Server client see stronger evidence than completed thread history alone. It receives the same `item/commandExecution/requestApproval` request and request ID as the provider client; `thread/resume` can replay a still-pending request. It later receives `serverRequest/resolved`, `item/completed`, and `turn/completed`.
+
+Lift now implements that second client as a passive observer. The controller starts one challenge-specific, root-owned transient systemd service from checksum-verified root-owned runtime files, with a private network namespace restricted to Unix sockets, read-only home access, and only a root-owned observation directory writable. The observer connects directly to the local Unix-domain App Server socket and never answers a server request. After initialization it first proves that no fresh post-baseline task exists, then atomically writes a root-owned mode-`0600` readiness record. Only after the controller validates that exact ready record may it show the phone prompt.
+
+The observer does not stop when the canary completes. It stays through the complete two-command turn and requires the exact approval request, matching resolution, successful canary item, subsequent successful proof item, and successful `turn/completed`, with no extra command, tool, or mutation item. Its normalized evidence binds the challenge and guard hashes, thread baseline, environment, native project, `cwd`, request, thread, turn, both item identities, both command hashes, and event times. The controller accepts it only from a successfully exited observer unit and root-owned private evidence file. Raw commands, pairing data, and provider secrets are not persisted in the observer record.
+
+This live path complements rather than replaces the historical verifier. The latter independently re-reads the completed task and enforces one new post-baseline task, one turn, exact command order and digests, exact `on-request`/`user` policy, network-disabled sandbox, agent provenance, null plugin/script provenance, and absence of plugin, MCP, or other unreviewed items. The controller separately proves no effective hook can run and binds the bounded complete `plugin/list` response before and after the attempt. Installed plugins may therefore remain enabled without being executed in the proof turn. The controller requires the live observation and historical result to agree before approval evidence can enter the checkpoint and safe-to-close chain.
+
+The public protocol does **not** mirror the phone's response payload or retain the responder connection identity. The first client response resolves the shared request, and the passive observer sees only that it resolved. `availableDecisions` is a presentation hint rather than a server-enforced allowlist, so the observer cannot directly prove the selected enum either. Therefore the combined evidence proves `request observed -> request resolved -> exact command succeeded` with the trusted official founder-controlled client, not “this exact phone user tapped Approve.” This remains an explicitly guarded founder-spike inference. It also does not prove a plugin-free model context: installed skill metadata can influence a new task without a tool call, and public documentation does not guarantee that `plugin/list` binds immutable remote bundle content. A high-assurance path needs a decision-bearing provider audit event or trusted transport boundary, plus isolated plugin-disabled execution or content-addressed pinned bundles.
+
+Observer schema v8 was deployed from immutable runtime bundle `4fa78e5437aff008e099bbd4c3be95720f19abb7c38f36ae7f0e8a007382bb0c` and exercised by the successful phone task. It validated the source-authentic `execpolicy_amendment` decision schema, request execution environment `local`, event ordering, matching resolution, both successful command lifecycles, and successful turn completion. The independent historical verifier agreed before checkpoint `0003` was allowed. Production-grade attribution still requires a provider audit event or another supported mechanism, and external alpha requires separating the provider daemon and credentials from the untrusted workload because both currently share the `lift` Unix identity. Undocumented trace logs and mutable local databases are not acceptable evidence. See the official [plugins](https://learn.chatgpt.com/docs/plugins), [skills](https://learn.chatgpt.com/docs/build-skills), [hooks](https://learn.chatgpt.com/docs/hooks), and [plugin management](https://learn.chatgpt.com/docs/enterprise/plugin-management) documentation.
+
+### 12. Mobile folder task semantics — deployed and live-verified
+
+The fresh task created from the phone after selecting `/home/lift/workspaces/lift-ec2-spike` had the exact intended `cwd` and `projectId: null`. Its one completed turn contained the two challenge commands in order; each completed command used source `unifiedExecStartup`, null plugin/script provenance, exit code zero, and a stored command that decoded exactly to `/bin/bash -lc INNER`, where `INNER` matched the independently reconstructed challenge command byte-for-byte. The active rules directories were empty after the founder selected one-time approval.
+
+This is provider-authentic folder binding, not evidence that the separately registered App Server project became visible or assigned to the mobile task. The deployed compatibility path keeps those facts separate and requires exactly one post-baseline exact-folder task, null project assignment on list/read/resume, exact resume-time runtime roots, exact wrapper argv and inner hashes, exact item order, unchanged rule/hook/plugin guard, the passive request/resolution observer, and no extra tools or mutations. Older project-bound verifier evidence no longer satisfies the versioned safe-to-close methods. The 2026-09-02 task passed both evidence paths; following checkpoint `0003` restored successfully, and the subsequent fresh live evaluation reported `safeToClose: true`.
+
 ## AWS isolation for the EC2 pass
 
-A new local AWS CLI profile named `lift-spike` was created with region `us-east-1` and JSON output. It currently contains no credentials. Every existing company or organization account and profile is out of scope and must never be used for this spike.
+A dedicated local AWS CLI profile named `lift-spike` was bound to the founder's isolated personal spike account in `us-east-1`. Caller identity was verified before provisioning. Every existing company or organization account and profile remains out of scope and must never be used for this spike.
 
-Once the user has an eligible personal AWS account, bind `lift-spike` with `aws login --profile lift-spike`. AWS's console-login flow supplies short-lived credentials and avoids storing a long-lived access key. Verify the caller identity before provisioning, without recording the account number in this repository.
+Use short-lived user-authorized credentials where possible, verify caller identity before every provisioning or lifecycle operation, and do not record the account number or credentials in this repository.
 
 The EC2 pass should use tagged, isolated resources, encrypted storage, no public application listener, Systems Manager administration, a cost alert, and an explicit cleanup record.
 
@@ -165,14 +240,17 @@ Official reference:
 
 - The provider-blind workload runner remains technically plausible: it only needs to install, authenticate, start, health-check, and restart an opaque provider command.
 - A zero-terminal Connections experience is technically plausible because the CLI produces a provider-owned short-lived artifact and the provider pairing URL successfully claimed the Linux environment from ChatGPT mobile.
-- Direct ChatGPT-mobile-to-headless-Linux execution is technically viable on the tested experimental CLI surface. The remaining uncertainty is production support and lifecycle reliability, not whether a phone task can reach Linux at all.
+- Direct ChatGPT-mobile-to-headless-Linux execution is technically viable on the tested experimental CLI surface, including a real Ubuntu EC2 workspace. The remaining uncertainty is production support, repeatability, and lifecycle reliability, not whether a phone task can reach Linux at all.
 - The cloud working copy must be a real directory within the provider-browsable persistent home. Symlink indirection to an external mount failed in the tested picker.
 - The default `Chat` workspace is dangerous for this product because it silently creates an empty projectless directory. Lift must verify the provider-reported `cwd` and block safe-to-close until it matches the lifted workspace.
+- Process health and native-provider readiness are separate states. A live daemon with no exact native project is not ready, and readiness failure must block handoff without restarting an otherwise healthy provider process.
+- Provider neutrality permits a reviewed recipe-scoped connector. The reusable runner remains generic while the connector uses the provider-owned, version-pinned API to reconstruct and verify semantic state.
 - Sandbox readiness is part of the product experience. Missing user-namespace support turned one tiny edit into three approval prompts.
-- Git checkpoint plus clean fast-forward returned the exact phone-authored commit while retaining session history, which supports the existing Git-backed Land decision.
+- The local precursor's Git checkpoint plus clean fast-forward returned the exact phone-authored commit, and the EC2 pass restored three immutable checkpoint revisions from exact versioned S3 objects. Together these support the existing Git-backed Land decision without yet proving the complete Land transaction.
+- A changed guest boot ID plus exact EBS, checkpoint, proof-file, runner-health, and Remote-environment recovery demonstrates semantic restart continuity for one EC2 stop/start without claiming process-memory continuity.
 - Lift must pin and continuously retest compatible provider versions because this surface is not yet established in the published production workflow.
 - Launch copy must continue to distinguish observed behavior from officially documented support.
-- Do not launch Codex direct-to-headless-Linux as a laptop-off promise until EC2, network, guest restart, literal laptop-off, revocation, and provider-policy tests pass. The local direct-phone execution gate itself is now passed.
+- Do not launch Codex direct-to-headless-Linux as a laptop-off promise until network recovery, repeated independently observed laptop-off runs, revocation, complete Land, provider-service isolation, and provider-policy tests pass. Direct phone execution and full EC2 stop/start recovery are now observed once; promotion remains gated.
 
 ## Exit record
 
@@ -192,3 +270,19 @@ Current local-precursor record:
 - revocation result:
 - final verdict: local direct pairing, task execution, approval, Git checkpoint, and clean return pass; experimental surface remains version- and client-dependent
 - product decision and fallback: proceed to the isolated EC2 lifecycle spike, but do not claim laptop-off support until the remaining promotion tests pass
+
+Current real-EC2 record:
+
+- runtime result: pass for provisioning and direct phone execution on a real Ubuntu EC2 workspace with separate encrypted EBS
+- workspace targeting: pass; the provider-reported `cwd` matched the intended real workspace beneath `/home/lift/workspaces`
+- laptop-off result: strongly corroborated founder evidence; fresh nonce proof and Mac reboot timestamps match the reported shutdown sequence, but no cryptographic device attestation was available
+- cloud checkpoint result: pass for immutable Lift-private Git checkpoints `0001`, `0002`, and post-restart phone checkpoint `0003` on the exact encrypted EBS volume
+- off-volume recovery result: pass; checksummed bundle and manifest objects were fetched by exact S3 version and restored into fresh repositories with commit, tree, history-ref, and evidence verification
+- EC2 stop/start result: structural pass; guest boot ID changed, exact encrypted EBS reattached, checkpoint `0002` commit and bundle and both proof files recovered, provider-neutral systemd runner auto-started healthy, and exact Codex Remote environment ID was preserved
+- post-restart native phone result: pass once; a brand-new task bound to the exact EBS folder, completed the exact two-command proof, and entered restore-tested checkpoint `0003`
+- post-restart server-side remediation: pass; pinned App Server connector registered and read back the exact native `lift` project, exact trust root, connected Remote state, and paired-controller presence while preserving the narrow write boundary; controller-side project visibility remains explicitly unknown because the phone picker showed only `Chat` and `Add new folder`
+- approval observer result: deployed as schema v8 and live-proven once with root-owned service/readiness/evidence and agreeing independent historical verification; selected decision and responder identity remain guarded inference rather than directly exposed protocol evidence
+- network recovery result: pending
+- revocation result: pending
+- local Land and deliberate conflict result: pending
+- compatibility verdict: continue Phase 0; do not label the path Alpha or Verified and do not claim launch readiness

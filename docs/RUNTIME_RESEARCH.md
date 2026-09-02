@@ -1,6 +1,6 @@
 # Runtime and Remote-Control Research
 
-Last updated: 2026-08-31
+Last updated: 2026-09-01
 
 ## Executive decision
 
@@ -53,7 +53,7 @@ The locally installed `codex-cli 0.146.0`, inspected on 2026-08-31, also exposes
 - `codex app-server daemon bootstrap --remote-control`
 - `codex app-server daemon enable-remote-control`
 
-These commands create a plausible direct Linux-host-to-phone path, but the official product documentation does not yet establish it as a supported production workflow. The App Server WebSocket transport is explicitly experimental and unsupported for production. Lift must run a feasibility spike before advertising headless Codex mobile support.
+These commands create a plausible direct Linux-host-to-phone path, but the official product documentation does not yet establish it as a supported production workflow. The App Server WebSocket transport is explicitly experimental and unsupported for production. A founder feasibility spike has now exercised the path on real Ubuntu EC2; that observed behavior does not authorize Lift to advertise headless Codex mobile support until lifecycle and provider-policy gates pass.
 
 The local feature listing and command availability are not a sufficient compatibility guarantee. CLI behavior can lead public documentation, be gated by account rollout, or change without a stable third-party contract. The spike must record the exact CLI, desktop, and mobile versions and distinguish observed behavior from documented support.
 
@@ -131,6 +131,14 @@ Recommended prototype shape:
 - cloud-init or an immutable base image for repeatable bootstrap.
 
 Stopping an EC2 instance removes compute charges but does not preserve RAM or running processes. Attached EBS state remains billable and persistent. Lift should promise semantic continuity after a stop, not memory-level process continuation.
+
+### Phase 0 runtime evidence recorded on 2026-09-01
+
+- A real single-tenant Ubuntu EC2 instance ran Codex Remote against the intended workspace on a separate encrypted EBS volume.
+- ChatGPT on the founder's phone paired directly with that environment and controlled the correct cloud `cwd`; the data path did not require ChatGPT Desktop as a relay.
+- A fresh unpredictable challenge was armed immediately before the founder reported shutting down the Mac. The exact nonce, source, and cloud `cwd` were then written into the EBS workspace from the phone, and later Mac reboot timestamps strongly corroborated the order of events. This is human-attested founder evidence, not cryptographic attestation that the Mac was powered off.
+- Immutable Lift-private Git checkpoints `0001` and `0002` were created against the exact encrypted EBS workspace. Checksummed bundles and manifests were stored as versioned private S3 objects, downloaded by exact version, and restored into fresh repositories with commit, tree, history-ref, and evidence-file verification.
+- One EC2 stop/start changed the guest boot ID while the exact encrypted workspace EBS volume reattached. Checkpoint `0002`'s commit and bundle and both proof files recovered, the provider-neutral systemd runner automatically started healthy, and the exact Codex Remote environment ID was preserved. After server-side native-project reconstruction, a fresh post-baseline phone task passed exact folder/runtime binding, guarded approval observation, proof, following checkpoint `0003`, exact-version restore, and fresh safe-to-close evaluation. Separate provider-service identity and credential isolation are pre-alpha gates.
 
 Official references:
 
@@ -234,15 +242,17 @@ High confidence:
 - Lift should not recreate provider mobile interfaces;
 - provider remote compatibility must remain outside Lift's generic workload runner;
 - Cloudflare's current local disk model is not the authoritative workspace filesystem.
-- the tested experimental Codex CLI can pair ChatGPT mobile directly to headless Linux and execute against a selected persistent working copy;
+- the tested experimental Codex CLI can pair ChatGPT mobile directly to headless Linux, including one real Ubuntu EC2 workspace, and execute against a selected persistent working copy;
 - provider-visible working copies should be real directories beneath the persistent remote user home, not symlinks to an external mount.
+- exact-version object recovery plus Lift-private Git refs can preserve a cloud checkpoint chain independently of the live working directory.
+- one EC2 stop/start can reconstruct the exact EBS-backed workspace and automatically restart the provider-neutral runner while preserving the Codex Remote environment identity.
 
 Requires a spike:
 
-- whether the locally proven Codex headless pairing and task flow repeats reliably on Ubuntu EC2;
+- whether the observed Codex headless pairing and task flow repeats reliably across users, provider releases, and independent laptop-off runs;
 - whether the provider permits and sustains the required cloud-host authentication flow;
 - which Codex session metadata can be preserved without depending on unsupported internals;
-- whether Codex Remote reconnects correctly after daemon, network, and VM restarts;
+- whether the preserved Codex Remote environment accepts a new native phone task after EC2 stop/start and reconnects correctly after network interruption;
 - which Ubuntu kernel and `bubblewrap` settings eliminate avoidable sandbox escalation prompts without weakening isolation;
 - the smallest safe SSH or mesh-network path needed for the stable desktop-relay fallback.
 
