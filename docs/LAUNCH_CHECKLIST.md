@@ -1,12 +1,14 @@
 # Launch Readiness Checklist
 
-Last updated: 2026-08-31
+Last updated: 2026-09-02
 
 ## How to use this checklist
 
 Assign an owner and evidence link for every applicable item. `Done` means verified against the release candidate, not implemented once in development.
 
 Public launch requires every hard no-go condition to be false. Private alpha may defer explicitly labeled scale items, but it may not defer work preservation, isolation, credential safety, deletion, or truthful product claims.
+
+The founder Phase 0 pass does not check any release box by itself. It used a generated disposable fixture, experimental provider surfaces, founder-operated terminal steps, and a shared provider/workload Unix identity. Current evidence and blockers are in [`CURRENT_STATE.md`](CURRENT_STATE.md).
 
 ## Hard no-go conditions
 
@@ -43,11 +45,14 @@ Do not launch until every statement below has been verified and checked:
 - [ ] Authentication occurs through an official provider-owned flow.
 - [ ] Lift never collects the provider password.
 - [ ] Reusable credentials are encrypted and isolated from project content.
+- [ ] Provider service, reusable credentials, and policy state are isolated from untrusted workspace execution by a separate identity or narrow broker.
 - [ ] Native remote startup is supervised and restartable.
 - [ ] Readiness distinguishes process health from provider registration.
 - [ ] Reauthentication, revoke, disconnect, and account switch are tested.
 - [ ] Laptop-off continuation, network interruption, provider process restart, and VM restart are tested.
 - [ ] Version compatibility and known limitations are published.
+- [ ] Approval claims match available evidence; strict decision/responder attribution uses a provider audit signal or trusted boundary, otherwise the guarded-inference limitation is explicit.
+- [ ] Plugin and hook influence is isolated or content-addressed strongly enough for the advertised approval assurance.
 - [ ] Fallbacks are labeled accurately and do not imply laptop independence.
 
 ## Local helper
@@ -65,6 +70,7 @@ Do not launch until every statement below has been verified and checked:
 
 - [ ] Manifest schema is versioned and signed or otherwise authenticated.
 - [ ] Tracked, staged, unstaged, untracked, and approved ignored content are tested.
+- [ ] A production manifest-review flow replaces the disposable fixture marker before any real repository is uploaded.
 - [ ] Exclusions prevent unrelated home-directory and secret transfer.
 - [ ] Lift-private Git capture does not move user branches, refs, or real index.
 - [ ] Cloud checkpoints include dirty final state.
@@ -88,6 +94,9 @@ Do not launch until every statement below has been verified and checked:
 - [ ] No unauthenticated provider daemon or workspace port is public.
 - [ ] Administrative access uses individual least-privilege identities and audit logs.
 - [ ] Base image, bootstrap, and recipe versions are reproducible.
+- [ ] Root-executed installer bytes are signed/content-addressed or verified against reviewed signatures and digests.
+- [ ] Persisted AWS identity and resource claims are re-bound to the live account, immutable principal identity, stack, physical resources, and AMI before every deployed action.
+- [ ] AWS subprocesses discard ambient credentials, profiles, regions, endpoint overrides, CA/Botocore configuration, and metadata-endpoint overrides.
 - [ ] Idle stop and monthly hard caps are tested.
 - [ ] Duplicate or failed provisioning does not create unbounded cost.
 - [ ] Region outage and unrecoverable-instance procedures are documented.

@@ -1,12 +1,14 @@
 # Provider-Neutral Remote Workloads
 
-Last updated: 2026-09-01
+Last updated: 2026-09-02
 
 ## Decision
 
 Lift should not implement a Codex adapter, Claude adapter, or universal agent protocol.
 
 Lift should implement one provider-blind remote workload runner. A reviewed connection recipe installs and starts a long-lived command inside the Lift workspace. If that command implements native remote control, the provider connects it to the provider's existing mobile or web client. Supported recipes are presented through Lift's Connections tab rather than exposed as terminal configuration.
+
+The current merged implementation and the boundary between passed founder evidence and target product behavior are summarized in [`CURRENT_STATE.md`](CURRENT_STATE.md).
 
 ```text
 Lift workspace and generic process supervisor
@@ -165,7 +167,7 @@ codex remote-control start
 codex remote-control pair
 ```
 
-A Codex recipe can install the CLI and declare the daemon start command. The current spike pins Codex `0.152.1` and uses a recipe-scoped connector over the live Unix-domain App Server control socket. Its preparation command idempotently registers the exact Lift workspace as a native Codex project and configures trust for only that path without requiring Remote or a controller; its separate readiness command reads that project back and requires connected Remote state plus paired-controller presence. The connector's nonsecret workspace-binding and create-idempotency record lives outside the project tree at `/home/lift/.codex/lift/<workspace-id>/codex-project.json`, with `0700` parent directories and a `0600` file. Its `project/*`, `config/value/write`, and Remote status/client calls come from the experimental version-pinned App Server schema, not a stable documented production contract. The connector validates that schema and all relevant versions before writing provider state, has no public listener or direct-SQLite fallback, and does not interpret Remote conversation messages.
+A Codex recipe can install the CLI and declare the daemon start command. The managed runtime used for the final passing run pins Codex CLI and App Server `0.152.1`; original guest-bootstrap metadata still records the earlier CLI `0.152.0`, so live managed identity—not the historical bootstrap field—is authoritative. The recipe-scoped connector uses the live Unix-domain App Server control socket. Its preparation command idempotently registers the exact Lift workspace as a native Codex project and configures trust for only that path without requiring Remote or a controller; its separate readiness command reads that project back and requires connected Remote state plus paired-controller presence. The connector's nonsecret workspace-binding and create-idempotency record lives outside the project tree at `/home/lift/.codex/lift/<workspace-id>/codex-project.json`, with `0700` parent directories and a `0600` file. Its `project/*`, `config/value/write`, and Remote status/client calls come from the experimental version-pinned App Server schema, not a stable documented production contract. The connector validates that schema and all relevant versions before writing provider state, has no public listener or direct-SQLite fallback, and does not interpret Remote conversation messages.
 
 A nonempty paired-client result proves only that a controller is registered. It does not prove that the phone is currently reachable, that the client is recent, or that an approval request can complete. Those remain separate end-to-end gates. In the finished product, the Connections tab must present the provider-owned login and any supported pairing flow without asking the user to open a terminal.
 
@@ -207,7 +209,7 @@ Official references:
 6. Pair ChatGPT mobile without Lift parsing the exchange.
 7. Register and read back the exact native project through the pinned provider API without making registration depend on Remote or controller presence.
 8. Require a fresh live runner and native-Remote readiness result.
-9. Start a brand-new post-baseline phone task against that project and verify its actual project ID, working directory, and runtime roots.
+9. Start a brand-new post-baseline phone task at the declared controller-binding level and verify its actual project ID, working directory, and runtime roots. The observed path is exact-folder binding with `projectId: null`, not controller assignment to the server project.
 10. Complete a controlled approval request and response through the native provider UI.
 11. Create and restore-test a durable checkpoint containing the phone and approval evidence, then revalidate live readiness before reporting safe-to-close.
 12. Disconnect the provisioning laptop.
@@ -215,9 +217,9 @@ Official references:
 14. Replace the internal PTY steps with a Connections-tab flow before calling Codex first-class support.
 15. Stop and start EC2, confirm EBS state, and restart the recipe semantically.
 16. Reconstruct and read back the exact native provider project before declaring readiness.
-17. Create a fresh mobile task in that project and write a post-restart proof inside the exact Lift workspace.
+17. Create a fresh mobile task bound to the exact Lift folder and write a post-restart proof inside the exact Lift workspace.
 
-The direct transport, real-EC2 workspace, structural stop/start recovery, and server-side project/readiness reconstruction portions of the spike now pass once. The overall promotion test succeeds only after a fresh post-baseline mobile task is verified against the exact project/root, its post-restart proof and approval round trip complete, a following checkpoint is restored successfully, and the provider-owned connection survives the remaining recovery and repeated laptop-off scenarios without an awake desktop relay. Separate provider-service identity and credential isolation must also pass before external alpha use. Until then, Lift remains provider-neutral and Codex remains an experimental recipe rather than a supported phone-with-laptop-off surface.
+The direct transport, real-EC2 workspace, structural stop/start recovery, server-side project/readiness reconstruction, fresh exact-folder phone task, guarded approval/proof turn, and following restore-tested checkpoint now pass once. Promotion still requires network interruption and recovery, reauthentication and revocation, repeated independent laptop-off and stop/start runs, provider-policy review, complete conflict-safe Land, a zero-terminal product path, and separate provider-service identity and credential isolation. Until then, Lift remains provider-neutral and Codex remains an experimental recipe rather than a supported phone-with-laptop-off surface.
 
 ## Claude as another recipe
 

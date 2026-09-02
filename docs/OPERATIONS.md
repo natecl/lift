@@ -1,10 +1,12 @@
 # Alpha Operations and Support
 
-Last updated: 2026-09-01
+Last updated: 2026-09-02
 
 ## Operating principle
 
 During alpha, Lift is a high-trust infrastructure product. Fast growth is less important than knowing where every workspace revision is, which process can write it, and how a user gets their work back.
+
+Lift is not in external alpha yet. The current environment is a founder-only disposable feasibility workspace with one passing provider-path run and no complete Land or real-workspace capture flow. The point-in-time runtime state and exact remaining gates are in [`CURRENT_STATE.md`](CURRENT_STATE.md); they must be re-read rather than inferred from a cached safe-to-close value.
 
 ## Supported alpha envelope
 
@@ -30,7 +32,7 @@ Unsupported does not mean “probably works.” It means Lift detects the condit
 - confirm the user matches the ICP;
 - choose a real noncritical repository;
 - confirm a supported provider account and phone application;
-- explain that direct Codex phone continuation, structural EC2 restart recovery, and server-side native-project reconstruction each have one founder-only observation, while a fresh post-baseline bound phone-task proof, controlled approval round trip, following restore-tested checkpoint, separate provider-service identity and credential isolation, network recovery, revocation, repetition, complete Land, and provider-policy review remain gated;
+- explain that direct Codex phone continuation, structural EC2 restart recovery, exact post-restart folder binding, the guarded approval/proof turn, and the following restore-tested checkpoint have passed once as founder-only evidence; separate provider-service identity and credential isolation, network recovery, revocation, repetition, complete Land, the zero-terminal journey, and provider-policy review remain gated;
 - identify sensitive files and expected exclusions;
 - set a conservative compute cap;
 - establish the support channel and emergency stop path;

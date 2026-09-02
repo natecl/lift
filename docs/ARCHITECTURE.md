@@ -1,6 +1,12 @@
 # Architecture Direction
 
+Last updated: 2026-09-02
+
 This document defines the selected prototype direction. The first runtime is Ubuntu EC2 with EBS. One provider-blind workload runner executes any reviewed user command; Codex remote control is the first recipe used to validate it.
+
+## Current implementation cut line
+
+The merged Phase 0 Python harness implements the EC2/EBS/S3 runtime driver, generated-fixture reconstruction, provider-blind runner, experimental Codex recipe/connector, stop/start recovery, challenge-bound readiness evidence, and immutable restore-tested cloud checkpoints. It does not implement the desktop helper, dashboard, product control plane, secret broker, arbitrary real-workspace manifest, or complete Land. The next architectural slice is the `B/L/C` return and conflict path in [`STATE_SYNC.md`](STATE_SYNC.md). See [`CURRENT_STATE.md`](CURRENT_STATE.md) for the dated evidence boundary.
 
 ## Architecture goals
 
@@ -237,9 +243,9 @@ Never implement return as a blind directory mirror.
 
 ## Prototype stack hypothesis
 
-This is the selected speed-oriented prototype:
+This is the selected speed-oriented product hypothesis. The current feasibility code is Python; the customer-facing implementation language remains a later choice:
 
-- TypeScript for the Lift CLI and orchestration code where practical.
+- Python for the current Phase 0 harness; TypeScript remains a candidate for the product helper and control-plane orchestration where practical.
 - A minimal desktop helper and dashboard for Connections, Workspaces, and Lift Off.
 - A generic connection state machine driven by signed declarative recipes.
 - One x86_64 Ubuntu EC2 instance per prototype workspace.
@@ -274,7 +280,7 @@ Provider transcripts, sessions, pairing codes, account state, and remote protoco
 
 The first Codex recipe is tested in two provider-owned modes:
 
-1. A headless Linux remote-control and pairing spike using the current experimental CLI commands. This is the desired laptop-off path but is not a supported product promise until proven.
+1. A headless Linux remote-control and pairing spike using the current experimental CLI commands. Single-run feasibility has passed, but it is not a supported product promise until recovery, repetition, isolation, policy, and Land promotion gates pass.
 2. The documented ChatGPT Desktop-to-SSH path. This validates Codex against the Lift workspace but still requires an awake Mac or Windows relay.
 
 Never expose Codex App Server directly on a public network. The official documentation recommends SSH, VPN, or mesh networking and labels the WebSocket transport experimental.

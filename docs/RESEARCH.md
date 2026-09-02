@@ -1,6 +1,6 @@
 # Research and Market Context
 
-Last updated: 2026-09-01
+Last updated: 2026-09-02
 
 ## Research conclusion
 
@@ -9,6 +9,8 @@ The problem is real and timely. People actively want coding agents to continue a
 The generic solution is already competitive. Persistence, phone access, and bring-your-own-agent are category requirements rather than sufficient differentiation.
 
 Lift should launch around local-to-cloud state continuity: importing the exact active project state into a persistent cloud computer and safely reconciling it afterward.
+
+The dated product/technical evidence boundary is in [`CURRENT_STATE.md`](CURRENT_STATE.md). The market conclusion remains unproven by the founder feasibility pass; one working runtime does not establish demand, frequency, retention, or willingness to pay.
 
 ## Last-30-days signal
 
@@ -58,6 +60,8 @@ The same run created immutable Lift-private Git checkpoints `0001` and `0002` on
 A subsequent EC2 stop/start changed the guest boot ID while reattaching the exact encrypted EBS workspace. Checkpoint `0002`'s commit and bundle and both proof files recovered, the provider-neutral systemd runner automatically started healthy, and the exact Codex Remote environment ID was preserved. This answers whether direct phone-to-EC2 execution is technically possible on the tested experimental surface, materially de-risks durable cloud checkpoint recovery, and passes structural restart recovery once.
 
 Server-side native-project reconstruction and exact-root readiness pass on the preserved environment. On 2026-09-02, a fresh post-baseline phone task then passed exact folder/runtime binding, guarded approval observation, and the post-restart proof. Following checkpoint `0003` restored successfully from exact versioned S3 objects, and fresh live evaluation reported `safeToClose: true`. This closes the single-run end-to-end feasibility question without establishing official support or repeatability. Separate provider-service identity and credential isolation are pre-alpha gates. The run also does not prove network recovery, revocation, complete Land, market demand, retention, or willingness to pay.
+
+The failure sequence produced three reusable technical findings: process health is not provider readiness; server-side project registration is not phone-picker visibility; and an expiring safe-to-close verdict must bind a fresh phone task and approval/proof evidence to a following restore-tested checkpoint. The successful mobile task was bound to the exact folder with `projectId: null`, so it proves folder continuity rather than controller project assignment. These findings shape the implementation but do not change the market thesis by themselves.
 
 ## Evidence of the problem
 

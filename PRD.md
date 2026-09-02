@@ -14,6 +14,10 @@ The first release focuses on one narrow promise:
 
 Lift is the infrastructure layer beneath Codex, Claude Code, and other CLI agents. It manages workspace state, execution, runtime lifecycle, and generic process supervision without replacing the agent, speaking its remote protocol, or recreating its phone and desktop clients.
 
+### Current implementation state
+
+The merged Phase 0 code proves the experimental Codex provider path once on a generated disposable workspace: real EC2/EBS, direct provider-native phone control, one stop/start recovery, guarded approval/proof evidence, three immutable restore-tested checkpoints, and a short-lived `safeToClose: true` verdict. It does **not** yet implement the customer product, arbitrary real-workspace capture, a reviewable manifest, the dashboard/helper, or complete Land. The next implementation slice is clean and conflicted Land on the disposable fixture. See [`docs/CURRENT_STATE.md`](docs/CURRENT_STATE.md).
+
 ## 2. Problem
 
 Agent-heavy developers routinely keep laptops awake because their agent, files, credentials, tools, and running application all live there. Existing alternatives each impose a compromise:
@@ -253,7 +257,7 @@ The prototype succeeds when a new alpha user can:
 7. Ask Codex for a change and verify that the Lift workspace changes while the local project remains untouched.
 8. Select `Land Workspace`, reopen the laptop, and see the cloud changes automatically reflected in the local workspace without losing local work.
 
-The stable Desktop-to-SSH flow is sufficient to validate workspace transplant and Codex execution, but it is not sufficient to claim the laptop-off mobile promise. A founder-only Ubuntu EC2 run has now demonstrated direct phone control and strongly corroborated a powered-off Mac through a fresh challenge/proof exchange and reboot timestamps. A subsequent EC2 stop/start preserved the exact encrypted EBS workspace, earlier checkpoints and proof files, the provider-neutral runner, and the exact Codex Remote environment. After server-side native-project reconstruction, a fresh post-baseline phone task passed exact folder/runtime binding, guarded approval observation, proof, following checkpoint, exact-version restore, and fresh safe-to-close evaluation once. This remains Phase 0 evidence rather than a public compatibility claim. Separate provider-service identity and credential isolation are pre-alpha gates; network recovery, revocation, repeated runs, and the complete Land acceptance test also remain pending.
+The stable Desktop-to-SSH flow is sufficient to validate workspace transplant and Codex execution, but it is not sufficient to claim the laptop-off mobile promise. A founder-only Ubuntu EC2 run has now demonstrated direct phone control and strongly corroborated a powered-off Mac through a fresh challenge/proof exchange and reboot timestamps. A subsequent EC2 stop/start preserved the exact encrypted EBS workspace, earlier checkpoints and proof files, the provider-neutral runner, and the exact Codex Remote environment. After server-side native-project reconstruction, a fresh post-baseline phone task passed exact folder/runtime binding with `projectId: null`, guarded approval observation, proof, following checkpoint, exact-version restore, and fresh safe-to-close evaluation once. This remains Phase 0 evidence rather than a public compatibility claim. The capture harness accepts only its generated disposable fixture and is not evidence of safe arbitrary-project transfer. Separate provider-service identity and credential isolation are pre-alpha gates; network recovery, revocation, repeated runs, the zero-terminal product journey, and the complete Land acceptance test also remain pending.
 
 ## 12. Success metrics
 
@@ -322,7 +326,7 @@ The private alpha should test willingness to pay against the completed handoff, 
 
 ## 15. Open questions
 
-- Does the preserved Codex Remote environment remain natively controllable from the phone after EC2 stop/start, and does the path remain reliable across network interruption, reauthentication, and provider releases?
+- Does the once-passed post-stop/start Codex phone path remain repeatable across users, independent runs, network interruption, reauthentication, and provider releases?
 - Which exact Codex state can be resumed without depending on unsupported internals?
 - What is the smallest desktop helper required for one-button local discovery and transfer?
 - Should v0 use Lift-hosted infrastructure or the user's AWS account?

@@ -1,6 +1,6 @@
 # Ideal Customer Profile
 
-Last updated: 2026-09-01
+Last updated: 2026-09-02
 
 ## Beachhead customer
 
@@ -184,6 +184,7 @@ Recruit from demonstrated behavior, not enthusiasm for an abstract “cloud lapt
 - several products already market persistent cloud agent environments and mobile access;
 - in one founder-only Phase 0 run, ChatGPT on the phone directly controlled the intended Ubuntu EC2 workspace before and after an EC2 stop/start, and three immutable cloud checkpoints were restored from exact versioned S3 objects;
 - that run's laptop shutdown is strongly corroborated by a fresh challenge/proof exchange and Mac reboot timestamps, but is human-attested rather than cryptographically device-attested.
+- the founder still needed terminal-operated authentication, pairing, exact folder selection, recovery, and evidence steps, confirming that the zero-terminal experience is a separate product problem rather than a consequence of provisioning the VM.
 
 ### Supported inference
 
@@ -194,7 +195,7 @@ Recruit from demonstrated behavior, not enthusiasm for an abstract “cloud lapt
 ### Unproven
 
 - the pain occurs frequently enough for retention;
-- the preserved Codex Remote environment remains natively controllable from the phone after EC2 stop/start and reliable across users, provider versions, and network interruption;
+- the once-passed Codex Remote stop/start path repeats reliably across users, independent runs, provider versions, reauthentication, and network interruption;
 - users trust Lift with real active state;
 - the zero-terminal experience can survive provider authentication constraints;
 - the primary ICP will pay enough to cover compute and support.

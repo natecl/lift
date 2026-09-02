@@ -17,6 +17,8 @@ Never label a component Verified based only on installation or process health. P
 
 Lift is in a Codex-first feasibility and private-alpha planning phase. Direct phone control and one full EC2 stop/start recovery have passed as founder evidence, with a laptop-off sequence strongly corroborated but not cryptographically attested. The post-restart run included exact folder/runtime binding, guarded approval observation, proof, following checkpoint, exact-version restore, and a fresh safe-to-close evaluation. Separate provider-service identity and credential isolation are pre-alpha gates; network recovery, revocation, repetition, provider-policy review, and complete Land remain pending, so no public laptop-off compatibility claim is final.
 
+The current implementation is fixture-only and has no complete Land or customer UI. See [`CURRENT_STATE.md`](CURRENT_STATE.md) before interpreting a first-slice target as present support.
+
 ## Provider matrix
 
 | Provider path | Runtime | Existing user interface | Status | Current limitation |
@@ -51,10 +53,10 @@ Every release records:
 
 | Component | Initial target | Status |
 | --- | --- | --- |
-| Distribution | Ubuntu LTS, exact image pinned per release | Exercised on a real Phase 0 EC2 instance; release pinning remains pending |
+| Distribution | Ubuntu LTS, exact image pinned per release | Canonical AMI identity is live-verified in Phase 0; AWS CLI and Codex installer bytes are still mutable and unverified before root execution |
 | Architecture | x86_64 | Selected for first slice |
 | Compute | One EC2 VM per workspace | One full Phase 0 stop/start phone recovery passed; provider-service and credential isolation remain pre-alpha gates |
-| Storage | Separate encrypted gp3 EBS volume | Exact volume and checkpoint `0002` recovered across one stop/start |
+| Storage | Separate encrypted gp3 EBS volume | Exact volume and checkpoint `0002` recovered across one stop/start; checkpoint `0003` then restored from exact versioned objects |
 | Administration | AWS Systems Manager; restricted SSH only for required diagnostics | Selected direction |
 | Process supervision | `systemd` user services | Provider-neutral runner auto-started healthy after one stop/start |
 | Region | One region | Phase 0 exercised in `us-east-1`; product-region decision remains pending |
@@ -97,13 +99,13 @@ The alpha must publish numeric repository and individual-file size caps after me
 
 ## Feature support
 
-| Capability | First slice | Later |
+| Capability | Current / first-slice state | Later |
 | --- | --- | --- |
-| One workspace, one user | Yes | Teams and sharing |
-| One active provider process | Yes | Multiple simultaneous agents |
-| Exact local dirty-state transplant | Yes | Multiple devices |
-| Provider-native phone continuation | Only after verified | More recipes |
-| Git-backed Land | Yes | Optional sanitized GitHub PR |
+| One workspace, one user | Founder harness only | Teams and sharing |
+| One active provider process | Implemented in founder harness | Multiple simultaneous agents |
+| Exact local dirty-state transplant | Generated fixture only; real manifest flow not implemented | Multiple devices |
+| Provider-native phone continuation | Experimental single-run pass | More recipes |
+| Git-backed Land | Designed; complete clean/conflict return not implemented | Optional sanitized GitHub PR |
 | Authenticated preview | No | Planned after handoff loop |
 | Browser profile migration | No | Isolated project browser identity only |
 | Whole-laptop clone | No | Explicit non-goal |
