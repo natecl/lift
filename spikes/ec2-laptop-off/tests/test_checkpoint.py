@@ -288,6 +288,23 @@ class CloudCheckpointTests(unittest.TestCase):
         bundle_heads = git("bundle", "list-heads", second["bundlePath"])
         self.assertIn(first["ref"], bundle_heads)
         self.assertIn(second["ref"], bundle_heads)
+        self.assertEqual(
+            [
+                {"ref": self.capture.ref, "objectId": self.capture.commit},
+                {"ref": first["ref"], "objectId": first["commit"]},
+                {"ref": second["ref"], "objectId": second["commit"]},
+            ],
+            second["recoveryCheckpointRefs"],
+        )
+        self.assertEqual(
+            first["recoveryHistoryRefs"],
+            second["recoveryHistoryRefs"][: len(first["recoveryHistoryRefs"])],
+        )
+        for item in [
+            *second["recoveryCheckpointRefs"],
+            *second["recoveryHistoryRefs"],
+        ]:
+            self.assertIn(f"{item['objectId']} {item['ref']}", bundle_heads)
 
     def test_private_git_wrapper_disables_hostile_hooks_and_fsmonitor(self) -> None:
         hostile = self.root / "hostile-git"

@@ -3,7 +3,7 @@
 Date: 2026-08-31
 Last updated: 2026-09-02
 
-Status: single-run founder feasibility pass, not launch-ready. Direct ChatGPT phone control works against both the local Ubuntu precursor and a real Ubuntu EC2 workspace on encrypted EBS. The founder's laptop-off run is strongly corroborated by a fresh challenge/proof exchange and Mac reboot timestamps, but it is not cryptographic device attestation. One EC2 stop/start recovered the exact workspace, earlier checkpoints and proof files, the provider-neutral runner, and the same Codex Remote environment. After server-side native-project reconstruction, a brand-new phone task bound to the exact EBS folder, completed a live observed approval-and-proof turn, and produced checkpoint `0003`, which passed exact-version S3 restore verification. Fresh live evaluation reported every safe-to-close gate true. Network recovery, revocation, repeated independently observed laptop-off runs, complete Land, provider-service isolation, and production-support policy remain pending.
+Status: single-run founder feasibility pass, not launch-ready. Direct ChatGPT phone control works against both the local Ubuntu precursor and a real Ubuntu EC2 workspace on encrypted EBS. The founder's laptop-off run is strongly corroborated by a fresh challenge/proof exchange and Mac reboot timestamps, but it is not cryptographic device attestation. One EC2 stop/start recovered the exact workspace, earlier checkpoints and proof files, the provider-neutral runner, and the same Codex Remote environment. After server-side native-project reconstruction, a brand-new phone task bound to the exact EBS folder, completed a live observed approval-and-proof turn, and produced checkpoint `0003`, which passed exact-version S3 restore verification. Fresh live evaluation reported every safe-to-close gate true. On 2026-09-02 separate generated disposable fixtures completed clean and deliberate same-file conflict Land runs across real EC2/EBS/S3 and the Mac. The clean path restored, imported, applied, acknowledged, returned the lease, and stopped compute. The conflict path preserved exact `B/L/C` and untouched local state, stopped at `NEEDS_REVIEW`/`LANDING`, retained the writer fence and compute, and repeated idempotently. Network recovery, revocation, automatic offline-helper wake, conflict-resolution UX, arbitrary real-workspace capture, customer UI/helper, repeated users and runs, provider-service isolation, and production-support policy remain pending.
 
 For the cross-functional current snapshot and next slice, see [`../CURRENT_STATE.md`](../CURRENT_STATE.md). This document remains the detailed experiment record.
 
@@ -150,11 +150,11 @@ Immediately before the shutdown attempt, Lift armed a fresh unpredictable nonce 
 
 This combination strongly corroborates that the phone continued the EC2 workspace while the Mac was off. It is still a human-attested founder test: Lift did not have a hardware-rooted power-state signal, an independent observer, or cryptographic device attestation. Record it as meaningful Phase 0 evidence, not as a public `Verified` compatibility claim.
 
-### 9. Immutable cloud checkpoints and exact restore — pass for three revisions
+### 9. Immutable cloud checkpoints and exact restore — pass for four revisions
 
-The run created three immutable Lift-private Git checkpoints: `0001` before the shutdown proof, `0002` after it, and `0003-post-restart-phone-proof` after the successful post-restart phone and approval evidence. The checkpoint process used Lift-private refs and indexes rather than moving the user's branch, refs, or index.
+The run created four immutable Lift-private Git checkpoints: `0001` before the shutdown proof, `0002` after it, `0003-post-restart-phone-proof` after the successful post-restart phone and approval evidence, and `0004-land-final` as the single final cloud state for Land. The checkpoint process used Lift-private refs and indexes rather than moving the user's branch, refs, or index.
 
-For all three revisions, Lift produced a Git bundle and manifest, computed checksums, and stored them as versioned private S3 objects. The verifier downloaded each exact object version into a clean location, checked the object checksums, restored the bundle into a fresh bare repository, and verified the expected commit, tree, retained history refs, and exact evidence file. Checkpoint `0003` is commit `674bd2722b961caf1e91db98f582330b6b4a54b5` with restored tree `df3bcde602bd34463dc70ffeb549bc4ae242d9ee`. This proves recoverability of those captured revisions independently of the live working directory.
+For all four revisions, Lift produced a Git bundle and manifest, computed checksums, and stored them as versioned private S3 objects. The verifier downloaded each exact object version into a clean location, checked the object checksums, restored the bundle into a fresh bare repository, and verified the expected commit, tree, retained history refs, and required evidence. Checkpoint `0003` is commit `674bd2722b961caf1e91db98f582330b6b4a54b5` with restored tree `df3bcde602bd34463dc70ffeb549bc4ae242d9ee`. The final `0004-land-final` bundle and manifest were additionally imported through the Mac's private quarantine and used as exact `C` for the applied reconciliation. This proves recoverability of those captured revisions independently of the live working directory.
 
 The subsequent stop/start test below proves structural recovery of the same EC2 workspace and Codex Remote environment for one run. It does not by itself prove native phone access after restart, the local Land transaction, or conflict behavior.
 
@@ -208,6 +208,24 @@ The fresh task created from the phone after selecting `/home/lift/workspaces/lif
 
 This is provider-authentic folder binding, not evidence that the separately registered App Server project became visible or assigned to the mobile task. The deployed compatibility path keeps those facts separate and requires exactly one post-baseline exact-folder task, null project assignment on list/read/resume, exact resume-time runtime roots, exact wrapper argv and inner hashes, exact item order, unchanged rule/hook/plugin guard, the passive request/resolution observer, and no extra tools or mutations. Older project-bound verifier evidence no longer satisfies the versioned safe-to-close methods. The 2026-09-02 task passed both evidence paths; following checkpoint `0003` restored successfully, and the subsequent fresh live evaluation reported `safeToClose: true`.
 
+### 13. Live clean Land to the Mac — single-run fixture pass
+
+On 2026-09-02 the founder invoked the fixture-only Land transaction against the same bound EC2 instance, encrypted EBS workspace, and versioned S3 bucket. The guest entered `LANDING`, froze the provider-neutral workload, and sealed exactly one next-ordinal final checkpoint, `0004-land-final`. Its exact S3 bundle and manifest versions restored successfully, then entered the Mac's private local ledger through quarantine as the immutable final-cloud commit `C`.
+
+The local `B/L/C` reconciliation finished with outcome `APPLIED`. The acknowledgement matched that exact `C` and its recovery identities, the guest persisted the matching acknowledgement, the distributed lease returned to `LOCAL_PRIMARY`, and the exact EC2 instance stopped only after acknowledgement.
+
+The first attempt exposed a controller-host packaging error: the configured record directory under `/run` was not writable. The failure occurred after final `C` was already durable. The EBS fence and journals preserved that recovery identity, so the corrected retry reused the same `0004-land-final` rather than recapturing a different cloud tree. The record-directory permission fix was covered by a regression test before the successful rerun.
+
+This is one clean founder-operated pass on a generated disposable fixture. It is not evidence for arbitrary real repositories, a reviewable manifest, customer UI/helper, automatic wake of an offline helper, conflict-resolution UX, repeatability across users or runs, provider-service credential isolation, network recovery, revocation, official provider support, or launch readiness.
+
+### 14. Live deliberate-conflict Land — single-run fixture pass
+
+A fresh generated fixture, `p0-20260902183748-a7b1`, began from one shared baseline and then changed `REMOTE_TEST.md` differently on the Mac and cloud workspace. Plain `land` froze the cloud writer, sealed and independently restore-tested exact immutable `0002-land-final`, imported it through quarantine, captured the returning local revision, and classified both a content-level and Git merge conflict.
+
+The controller returned `NEEDS_REVIEW` with the ownership lease still `LANDING`. The original local content, branch, index, refs, reflog, and full manifest remained byte-for-byte unchanged. The isolated conflict worktree retained stages 1, 2, and 3 for baseline `B`, local `L`, and cloud `C`; the private session refs and strict Git object verification remained valid. No apply journal, acknowledgement, ownership return, compute cleanup, or completion event was produced, and direct runner reactivation was rejected by the EBS-backed writer fence.
+
+Repeating the same plain `land` command returned `changed: false` and preserved byte-identical controller state, events, refs, operation evidence, local conflict file, exact S3 recovery versions, and final checkpoint. An independent read-only audit agreed with every invariant. This accepts the generated-fixture conflict boundary; it does not provide the missing user-facing resolution flow or expand the claim to arbitrary workspaces or external alpha.
+
 ## AWS isolation for the EC2 pass
 
 A dedicated local AWS CLI profile named `lift-spike` was bound to the founder's isolated personal spike account in `us-east-1`. Caller identity was verified before provisioning. Every existing company or organization account and profile remains out of scope and must never be used for this spike.
@@ -248,12 +266,12 @@ Official reference:
 - Process health and native-provider readiness are separate states. A live daemon with no exact native project is not ready, and readiness failure must block handoff without restarting an otherwise healthy provider process.
 - Provider neutrality permits a reviewed recipe-scoped connector. The reusable runner remains generic while the connector uses the provider-owned, version-pinned API to reconstruct and verify semantic state.
 - Sandbox readiness is part of the product experience. Missing user-namespace support turned one tiny edit into three approval prompts.
-- The local precursor's Git checkpoint plus clean fast-forward returned the exact phone-authored commit, and the EC2 pass restored three immutable checkpoint revisions from exact versioned S3 objects. Together these support the existing Git-backed Land decision without yet proving the complete Land transaction.
+- The local precursor's Git checkpoint plus clean fast-forward returned the exact phone-authored commit, and the EC2 pass restored immutable checkpoint revisions from exact versioned S3 objects. Final `0004-land-final` completed one exact clean return to the Mac; a fresh run's `0002-land-final` then exercised the deliberate-conflict boundary while preserving both sides and fencing writers. Together they accept the generated-fixture Land core without proving arbitrary-workspace behavior or conflict-resolution UX.
 - A changed guest boot ID plus exact EBS, checkpoint, proof-file, runner-health, and Remote-environment recovery demonstrates semantic restart continuity for one EC2 stop/start without claiming process-memory continuity.
 - Lift must pin and continuously retest compatible provider versions because this surface is not yet established in the published production workflow.
 - Launch copy must continue to distinguish observed behavior from officially documented support.
-- Do not launch Codex direct-to-headless-Linux as a laptop-off promise until network recovery, repeated independently observed laptop-off runs, revocation, complete Land, provider-service isolation, and provider-policy tests pass. Direct phone execution and full EC2 stop/start recovery are now observed once; promotion remains gated.
-- The current capture path must remain marker-gated to the generated disposable fixture. The next implementation slice is complete clean and conflicted Land on that fixture, followed by an explicit real-workspace manifest-review flow.
+- Do not launch Codex direct-to-headless-Linux as a laptop-off promise until network recovery, repeated independent users and runs, revocation, automatic offline-helper recovery, conflict-resolution UX, provider-service isolation, and provider-policy tests pass. Direct phone execution, full EC2 stop/start recovery, and separate clean and deliberate-conflict fixture Land outcomes are now observed once; promotion remains gated.
+- The current capture path must remain marker-gated to the generated disposable fixture. The next product slice is an explicit real-workspace manifest-review flow, followed by the customer helper and UI; additional clean/conflict repetitions and interruption tests remain evidence work.
 
 ## Exit record
 
@@ -279,14 +297,17 @@ Current real-EC2 record:
 - runtime result: pass for provisioning and direct phone execution on a real Ubuntu EC2 workspace with separate encrypted EBS
 - workspace targeting: pass; the provider-reported `cwd` matched the intended real workspace beneath `/home/lift/workspaces`
 - laptop-off result: strongly corroborated founder evidence; fresh nonce proof and Mac reboot timestamps match the reported shutdown sequence, but no cryptographic device attestation was available
-- cloud checkpoint result: pass for immutable Lift-private Git checkpoints `0001`, `0002`, and post-restart phone checkpoint `0003` on the exact encrypted EBS volume
-- off-volume recovery result: pass; checksummed bundle and manifest objects were fetched by exact S3 version and restored into fresh repositories with commit, tree, history-ref, and evidence verification
+- cloud checkpoint result: pass for immutable Lift-private Git checkpoints `0001`, `0002`, post-restart phone checkpoint `0003`, and final checkpoint `0004-land-final` on the exact encrypted EBS volume
+- off-volume recovery result: pass; checksummed bundle and manifest objects were fetched by exact S3 version and restored into fresh repositories with commit, tree, history-ref, and evidence verification; `0004-land-final` was also imported through private quarantine on the Mac
 - EC2 stop/start result: structural pass; guest boot ID changed, exact encrypted EBS reattached, checkpoint `0002` commit and bundle and both proof files recovered, provider-neutral systemd runner auto-started healthy, and exact Codex Remote environment ID was preserved
 - post-restart native phone result: pass once; a brand-new task bound to the exact EBS folder, completed the exact two-command proof, and entered restore-tested checkpoint `0003`
 - post-restart server-side remediation: pass; pinned App Server connector registered and read back the exact native `lift` project, exact trust root, connected Remote state, and paired-controller presence while preserving the narrow write boundary; controller-side project visibility remains explicitly unknown because the phone picker showed only `Chat` and `Add new folder`
 - approval observer result: deployed as schema v8 and live-proven once with root-owned service/readiness/evidence and agreeing independent historical verification; selected decision and responder identity remain guarded inference rather than directly exposed protocol evidence
 - AWS binding hardening result: post-hardening live status passed exact account, non-root ARN, immutable STS user ID, live stack/resource/AMI binding, and ambient AWS endpoint/configuration scrubbing while still deriving a short-lived `safeToClose: true`
+- clean Land result: pass once on the generated disposable fixture; exact `0004-land-final` returned through real EC2/EBS/S3 to the Mac, reconciliation reported `APPLIED`, the guest persisted the exact acknowledgement, ownership returned to `LOCAL_PRIMARY`, and EC2 stopped
+- deliberate live conflict result: pass once on a fresh generated disposable fixture; exact restore-tested `0002-land-final` and all `B/L/C` versions were preserved, original local and Git state remained unchanged, the controller stopped at `NEEDS_REVIEW`/`LANDING`, the writer stayed fenced, no acknowledgement or cleanup ran, and an exact retry returned `changed: false`
+- Land interruption result: pass for safe resume of the same durable `C`; an initial `/run` record-directory permission failure was fixed and regression-tested without creating a second final checkpoint
 - network recovery result: pending
 - revocation result: pending
-- local Land and deliberate conflict result: pending
+- automatic offline-helper wake and user-facing conflict-resolution result: pending
 - compatibility verdict: continue Phase 0; do not label the path Alpha or Verified and do not claim launch readiness

@@ -12,13 +12,35 @@ prove provider path
         -> prove phone continuation
         -> prove safe Land
         -> prove repeated behavior
+        -> prove persistent reuse and repeat mobile launch
         -> prove payment
+        -> prove multi-agent coordination
+        -> prove small-team collaboration
         -> scale access
 ```
 
 Do not enter the next phase because the calendar says so. Enter when the current phase's exit criteria are true.
 
 The canonical implementation and evidence snapshot is [`CURRENT_STATE.md`](CURRENT_STATE.md).
+
+The long-term destination is the project-centric cloud workspace defined in [`PRODUCT_NORTH_STAR.md`](PRODUCT_NORTH_STAR.md). This roadmap intentionally reaches it through the smallest complete solo handoff rather than treating the entire platform as one release.
+
+## North-star capability path
+
+The product sequence after the complete handoff is:
+
+1. retain and reuse the same cloud workspace across days;
+2. repeatedly launch completely new provider-native agent tasks after stopped-compute wake from a phone while the laptop is offline, without another local transfer;
+3. create equivalent workspaces from GitHub and empty templates;
+4. run multiple agent tasks, beginning with shared mode plus attribution and recovery;
+5. add isolated and read-only execution modes;
+6. add headless browser testing, visible browser observation, secure takeover, and project-scoped browser identity in risk-gated steps;
+7. prove provider neutrality with a second agent;
+8. prove one supported provider-owned cloud computer can participate as a replaceable execution location without owning the project;
+9. add team-lite workspace membership and GitHub-derived access;
+10. deepen collaboration, permissions, and governance only when observed use requires them.
+
+The limited shared-mode experiment in Phase 3 intentionally precedes broad cloud-origin and isolation support so design partners can expose coordination failures early. It does not promote multi-agent operation to a supported platform capability before the Phase 4 gates.
 
 ## Phase 0: Feasibility gates
 
@@ -39,7 +61,7 @@ Remove the two technical unknowns capable of invalidating the first promise.
 
 ### Current evidence
 
-The founder EC2 spike now passes the provider-path portion once: direct phone control, strongly corroborated laptop-off execution, EC2 stop/start recovery, exact post-restart folder binding, guarded native approval observation, versioned checkpointing, exact S3 restore, and a fresh `safeToClose: true` evaluation. The generated-fixture local return engine now also passes clean, disjoint, deliberate-conflict, interruption, rollback, exclusion, and Git-state-preservation tests. Phase 0 remains open because those mechanics are not yet wired to an enforced live cloud freeze, one restore-tested final `C`, exact local import, durable acknowledgement, and ownership-lease return. The zero-terminal product journey, provider-service identity isolation, network recovery, revocation, provider-policy review, and repetition remain separate Phase 1, pre-alpha, or compatibility-promotion gates.
+The founder EC2 spike now passes the provider-path portion once: direct phone control, strongly corroborated laptop-off execution, EC2 stop/start recovery, exact post-restart folder binding, guarded native approval observation, versioned checkpointing, exact S3 restore, and a fresh `safeToClose: true` evaluation. On 2026-09-02, generated fixtures also passed both live Land outcomes once: the clean run completed the EBS writer fence, immutable final `C`, exact-version restore/import, local application, durable two-sided acknowledgement, ownership return, and post-ack compute stop; a separate fresh same-file conflict run restored its exact final `C`, returned `NEEDS_REVIEW`, preserved the untouched local workspace and exact private `B/L/C` stages, retained `LANDING`, fenced cloud writers, omitted acknowledgement and cleanup, and was byte-stable on retry. The full local suite passes. Phase 0 remains narrow: explicit real-workspace manifest review, conflict-resolution UX, additional interruption runs, automatic offline-helper continuation, repeated clean/conflict evidence, and the zero-terminal journey remain open. Provider-service identity isolation, network recovery, revocation, provider-policy review, and repetition remain separate pre-alpha or compatibility-promotion gates.
 
 | Phase 0 gate | Current state |
 | --- | --- |
@@ -48,27 +70,24 @@ The founder EC2 spike now passes the provider-path portion once: direct phone co
 | EC2/EBS stop/start recovery | Passed once |
 | Post-restart exact folder and runtime binding | Passed once with `projectId: null`; controller project visibility remains unknown |
 | Guarded approval/proof turn | Passed once; selected decision and responder identity remain unavailable |
-| Immutable checkpoint and exact restore | Three checkpoints passed exact-version restore |
-| Phase 0 private capture and return merge | Fixture-only local `B/L/C` merge, transactional apply/rollback, conflict preservation, and receipt pass locally; live lifecycle wiring remains |
+| Immutable checkpoint and exact restore | The first run's four checkpoints passed exact-version restore through `0004-land-final`; the fresh conflict run's exact `0002-land-final` also passed restore |
+| Phase 0 private capture and return merge | One clean and one deliberate-conflict live founder-fixture transaction passed; repeat, conflict-resolution, offline-helper, and broader interruption evidence remain pending |
 | Real-workspace capture and complete product Land | Phase 1 target; not implemented |
 | No-terminal customer journey | Phase 1 target; not implemented |
 | Provider-service and credential isolation | Pre-alpha blocker; not implemented |
 | Network recovery, revoke, provider-policy review, repetition | Compatibility/promotion gates; not yet tested |
 
-### Immediate next slice
+### Immediate next evidence gate
 
-Connect the implemented local Land core to the disposable live fixture in this order:
+Build the smallest explicit real-workspace manifest/review flow while continuing adversarial fixture evidence:
 
-1. freeze cloud writers and enter `LANDING`;
-2. create and restore-test the final immutable cloud checkpoint `C`;
-3. restore and quarantine exact `C`, then import its verified objects into the existing local private ledger;
-4. invoke the tested local core to capture `L`, reconcile `B/L/C`, and either apply transactionally or preserve every side for review;
-5. if the helper is offline, keep the durable operation pending and continue automatically after reconnect;
-6. verify the final local manifest, durably acknowledge exact `C`, and return the lease to `LOCAL_PRIMARY`;
-7. retain baseline, checkpoint chain, final cloud state, local return, merge result, and receipt even after a clean merge;
-8. optionally stop compute only after the final cloud state is independently durable.
-
-The local acceptance cases now pass. The next acceptance gate is the same clean and deliberate-conflict pair through the real EC2/EBS/S3 lifecycle, including an offline-helper pause and retry without founder terminal intervention.
+1. separate discovery from permission and show a versioned candidate manifest before any real-workspace upload;
+2. require explicit inclusion of ignored or sensitive files and hard-exclude credentials, unrelated paths, and unapproved content;
+3. bind the approved manifest to baseline `B` and the later checkpoint/Land ledger, preserving the user's branch, refs, real index, and working tree;
+4. run the reviewed flow on one noncritical real repository only after the transfer boundary is inspectable;
+5. repeat clean and conflicted live fixture round trips from additional fresh sessions, requiring every conflict to stay fenced in `LANDING` with both sides preserved and no acknowledgement or cleanup;
+6. interrupt fresh fixture runs at the durable phase boundaries and verify stable `C`, receipt, acknowledgement, and lease identities on retry;
+7. separately implement and test a Land request made while the original helper is offline and automatic continuation on reconnect.
 
 ### Evidence recorded on 2026-09-01
 
@@ -85,7 +104,11 @@ The local acceptance cases now pass. The next acceptance gate is the same clean 
 - The root-owned passive observer and independent historical verifier agreed on the exact approval canary, resolution lifecycle, proof command, successful completions, and unchanged policy guard. The selected decision remains a guarded official-client inference because the public protocol omits it.
 - Immutable checkpoint `0003-post-restart-phone-proof` was uploaded as checksummed, versioned private S3 objects and restored into a fresh repository with exact commit, tree, file-count, manifest, and evidence verification.
 - Fresh live status reported EC2 running, Systems Manager online, the generic runner active/healthy/ready, Codex Remote connected, all handoff gates true, and `safeToClose: true`.
-- Separate provider-service identity and credential isolation are pre-alpha gates. Network interruption, revocation, repeated laptop-off runs, conflict-safe Land, and the complete local return remain pending.
+- Founder fixture run `p0-20260901083520-4fee` sealed `0004-land-final` at commit `4bba13ff328a41dba0c898023e0d26cf3c31249c`, tree `df3bcde602bd34463dc70ffeb549bc4ae242d9ee`; the exact versioned S3 bundle and manifest restored successfully.
+- The first Land attempt stopped safely at controller phase `FINAL_CHECKPOINT_DURABLE` on a `/run` parent-directory mode mismatch. After the permission fix, the same operation reused the same `C` and completed with `APPLIED` merge `444b397a5ced2a0ba7d7b6e3b888f7a694523d9e`, receipt `da72f1ab6e81572dfc58501f1437af9835d1de1d`, and acknowledgement `d2e97376dadaa3e0aadd3af3c5c9545c28c9ec246b7deccfb382110b91e02bbc`.
+- The guest reached `ACKNOWLEDGED`, the controller lease returned to `LOCAL_PRIMARY`, and compute stopped only after acknowledgement.
+- Fresh disposable run `p0-20260902183748-a7b1` exercised a deliberate both-modified conflict. Exact restore-tested `0002-land-final` was imported; Land returned `NEEDS_REVIEW`; controller and guest stayed `LANDING`; the original local content and Git state stayed exact; private stages preserved `B/L/C`; no acknowledgement or cleanup occurred; the cloud writer remained fenced; and a repeated Land returned `changed: false` without mutating its evidence.
+- Separate provider-service identity and credential isolation are pre-alpha gates. Explicit real-workspace review, network interruption, revocation, repeated laptop-off and clean/conflict runs, broader interruption coverage, conflict-resolution UX, automatic offline-helper continuation, and the complete no-terminal journey remain pending.
 
 ### Exit criteria
 
@@ -93,6 +116,7 @@ The local acceptance cases now pass. The next acceptance gate is the same clean 
 - Git-backed capture and merge work with tracked, dirty, staged, untracked, and approved ignored files;
 - no silent overwrite in the conflict test;
 - selected runtime survives stop and wake with durable files.
+- the complete disposable-fixture Land transaction passes both clean and conflicted outcomes on live EC2 without changing `C` across a retry. Each passed once on 2026-09-02; repetition and broader interruption evidence remain open.
 
 ### Do not build yet
 
@@ -102,6 +126,8 @@ The local acceptance cases now pass. The next acceptance gate is the same clean 
 - preview gateway;
 - billing;
 - arbitrary runtime abstraction beyond the thin interface required by the spike.
+
+These are sequencing constraints for Phase 0, not rejections of the product north star.
 
 ## Phase 1: Founder-only vertical slice
 
@@ -135,6 +161,7 @@ The founder completes one real loop without using a terminal during the product 
 - Land returns the exact expected content;
 - no terminal, SSH command, cloud console, or copied token appears after installation;
 - the complete demo can be shown in under three minutes excluding agent generation and cold provisioning.
+- after the laptop is off, the founder can launch a completely new Codex task from the phone into the exact Lift workspace without a desktop relay.
 
 ## Phase 2: Founder dogfood
 
@@ -153,6 +180,9 @@ Make Lift reliable enough that the founder chooses it over leaving the laptop op
 - compute and transfer timing instrumentation;
 - error states written in user language;
 - recovery runbook for every expected failure.
+- persistent reuse of the same cloud workspace across several days;
+- mobile launch of new agent tasks after stop and wake;
+- measurement of which tasks the founder would have postponed or run locally without Lift.
 
 ### Exit criteria
 
@@ -162,6 +192,8 @@ Make Lift reliable enough that the founder chooses it over leaving the laptop op
 - all intentional conflicts preserve both sides;
 - no unrecoverable workspace or credential incident;
 - founder can explain every status without infrastructure vocabulary.
+- at least three useful agent tasks begin from the phone while the laptop is offline;
+- the workspace is reused across several days without a full environment reconstruction.
 
 ## Phase 3: Design-partner alpha
 
@@ -180,6 +212,8 @@ Prove that people other than the founder can reach the same moment.
 - analytics funnel in [`ANALYTICS.md`](ANALYTICS.md);
 - privacy notice, alpha agreement, and explicit product limitations;
 - founder-operated incident and support playbooks.
+- a limited multi-agent experiment for qualified users, beginning with shared mode plus a pre-run checkpoint, attribution, overlap detection, and recovery;
+- a manual H14 comparison with users who already use at least two provider-owned cloud-agent environments, without building the external agent-computer gateway;
 
 ### Exit criteria
 
@@ -188,6 +222,9 @@ Prove that people other than the founder can reach the same moment.
 - at least 2 pay or place a deposit;
 - second-wave users require less assistance than the first;
 - zero data-loss, cross-user, credential-exposure, or false-safe-to-close incidents.
+- at least three users launch a new useful task from mobile while their laptop is offline;
+- multi-agent participants use parallelism for a real task rather than only exploring the feature.
+- H14 is measured with at least five qualified cross-provider users; if fewer than three repeatedly prefer one durable project across providers for coordination, environment, permission, provenance, or recovery reasons, revise or reject the standalone workspace thesis before private beta.
 
 ## Phase 4: Private paid beta
 
@@ -207,10 +244,14 @@ Turn the successful concierge loop into a supportable paid product.
 - onboarding education for workspace ownership and Land;
 - a second provider recipe only after Codex reliability is established or if Codex cannot support the promise;
 - documented provider and runtime version compatibility.
+- GitHub-created workspace beta for users who prefer cloud-first setup;
+- optional isolated and read-only agent-task modes after shared-mode behavior is observed;
+- headless browser testing behind explicit workspace network policy;
 
 ### Exit criteria
 
 - at least 20 paying users or another deliberately chosen sample large enough to observe repeat behavior;
+- at least one retained user renews into a second paid month rather than returning to a laptop, VPS, or provider-owned workspace;
 - target activation and repeat rates in [`ANALYTICS.md`](ANALYTICS.md) are met for four weeks;
 - support burden is manageable by the current team;
 - gross-margin trajectory is viable under [`ECONOMICS.md`](ECONOMICS.md);
@@ -226,7 +267,7 @@ Make one truthful, narrow promise to a wider audience.
 ### Required product scope
 
 - supported macOS and repository constraints are explicit;
-- at least one provider has a proven laptop-off flow;
+- at least one provider can launch a completely new, correctly bound task from its native phone application while the originating laptop is offline, including wake from stopped compute when applicable;
 - first-time connection and Lift Off are self-serve;
 - safe-to-close is evidence-backed;
 - Land is clean, understandable, and recoverable;
@@ -242,16 +283,17 @@ All applicable items in [`LAUNCH_CHECKLIST.md`](LAUNCH_CHECKLIST.md) are complet
 
 Rank by observed demand rather than vision appeal:
 
-1. reliability and wake-speed improvements;
-2. second first-class provider connection;
-3. more local operating systems and repository shapes;
-4. authenticated previews;
-5. optional sanitized GitHub pull-request return mode;
-6. multiple simultaneous agents;
-7. reusable environment profiles;
-8. BYO AWS;
-9. shared company workspaces;
-10. browser and non-code workloads.
+1. reliability, mobile-launch latency, and wake-speed improvements;
+2. broaden the earlier GitHub-created workspace beta and add equivalent empty/template creation;
+3. generalize the earlier shared-mode experiment into supported simultaneous-agent shared, isolated, and read-only modes;
+4. second first-class provider connection;
+5. broaden the earlier headless-browser beta into supported testing and authenticated previews;
+6. visible browser observation, secure takeover, and project-scoped browser identity;
+7. more local operating systems and repository shapes;
+8. optional sanitized GitHub pull-request publication;
+9. supported provider-owned agent-computer attachment and result ingestion;
+10. team-lite workspace membership and GitHub-derived access;
+11. reusable environment profiles, BYO cloud, and deeper collaboration controls.
 
 ## Workstream ownership
 
@@ -293,6 +335,8 @@ Until private-alpha retention is proven, do not build:
 - a sophisticated multi-tenant scheduler;
 - provider-specific protocol proxies;
 - features whose success cannot be observed in the canonical handoff.
+
+Maintain schemas and boundaries that can support multiple agent tasks, browser contexts, workspace membership, and GitHub-created origins later. Scope discipline forbids premature implementation, not forward-compatible architecture.
 
 ## Weekly operating review
 

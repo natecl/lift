@@ -7,25 +7,27 @@ This directory is the shared product knowledge base for humans and agents buildi
 For a complete introduction, read in this order:
 
 1. [`../README.md`](../README.md) for the product in one page.
-2. [`CURRENT_STATE.md`](CURRENT_STATE.md) for what exists, what passed, what failed, and what comes next.
-3. [`../PRD.md`](../PRD.md) for requirements, boundaries, and acceptance criteria.
-4. [`CONTEXT.md`](CONTEXT.md) for the product thesis and experience principles.
-5. [`ICP.md`](ICP.md) for the exact first customer and anti-ICP.
-6. [`EXPERIENCE.md`](EXPERIENCE.md) for the Connections, Lift Off, and Land user journey.
-7. [`DECISIONS.md`](DECISIONS.md) before changing product scope or architecture.
-8. [`ROADMAP.md`](ROADMAP.md) for the current evidence gate and next milestone.
+2. [`PRODUCT_NORTH_STAR.md`](PRODUCT_NORTH_STAR.md) for the durable workspace vision, capability model, and wedge-to-platform sequence.
+3. [`CURRENT_STATE.md`](CURRENT_STATE.md) for what exists, what passed, what failed, and what comes next.
+4. [`../PRD.md`](../PRD.md) for requirements, boundaries, and acceptance criteria.
+5. [`CONTEXT.md`](CONTEXT.md) for the product thesis and experience principles.
+6. [`ICP.md`](ICP.md) for the exact first customer and anti-ICP.
+7. [`EXPERIENCE.md`](EXPERIENCE.md) for workspace creation, mobile agent launch, Lift Off, and Land journeys.
+8. [`DECISIONS.md`](DECISIONS.md) before changing product scope or architecture.
+9. [`ROADMAP.md`](ROADMAP.md) for the current evidence gate and next milestone.
 
 ## Reading paths
 
 ### Founder and product
 
 1. [`CONTEXT.md`](CONTEXT.md)
-2. [`ICP.md`](ICP.md)
-3. [`../PRD.md`](../PRD.md)
-4. [`EXPERIENCE.md`](EXPERIENCE.md)
-5. [`RESEARCH.md`](RESEARCH.md)
-6. [`VALIDATION.md`](VALIDATION.md)
-7. [`ROADMAP.md`](ROADMAP.md)
+2. [`PRODUCT_NORTH_STAR.md`](PRODUCT_NORTH_STAR.md)
+3. [`ICP.md`](ICP.md)
+4. [`../PRD.md`](../PRD.md)
+5. [`EXPERIENCE.md`](EXPERIENCE.md)
+6. [`RESEARCH.md`](RESEARCH.md)
+7. [`VALIDATION.md`](VALIDATION.md)
+8. [`ROADMAP.md`](ROADMAP.md)
 
 ### Engineering and security
 
@@ -57,7 +59,8 @@ For a complete introduction, read in this order:
 
 ### Understand the opportunity
 
-- [`CURRENT_STATE.md`](CURRENT_STATE.md) is the canonical cross-functional snapshot of the merged implementation, observed evidence, limitations, lessons, and next slice.
+- [`CURRENT_STATE.md`](CURRENT_STATE.md) is the canonical cross-functional snapshot of the repository implementation, observed evidence, milestone provenance, and remaining product boundary.
+- [`PRODUCT_NORTH_STAR.md`](PRODUCT_NORTH_STAR.md) defines the project-centric cloud workspace, mobile launch, multi-agent modes, browser and computer capabilities, GitHub relationship, defensibility, and validation sequence.
 - [`CONTEXT.md`](CONTEXT.md) explains why Lift should exist and what “replace the laptop” means.
 - [`ICP.md`](ICP.md) defines the beachhead customer, triggers, alternatives, anti-ICP, and qualification score.
 - [`EXPERIENCE.md`](EXPERIENCE.md) defines the zero-terminal onboarding, one-button launch, safe-to-close, and Land contract.
@@ -93,15 +96,17 @@ For a complete introduction, read in this order:
 
 ## Current product sentence
 
-Lift teleports your active coding workspace to a persistent cloud computer so any coding agent can keep working after you close your laptop.
+Lift gives every software project a persistent cloud workspace where developers and AI agents can work together from any device.
+
+The first proof remains a local-to-cloud-to-phone-to-local loop in which the laptop can close and the user can launch or continue Codex from the provider's phone application.
 
 ## Current narrow wedge
 
-One user lifts one active coding project from macOS into an isolated persistent Linux workspace, continues Codex through an existing OpenAI interface, and safely reconciles the result back to the laptop. A founder-only generated-fixture spike has observed direct phone-to-Ubuntu-EC2 control and one full stop/start recovery with exact post-restart folder binding, guarded approval observation, proof, and a following restore-tested immutable checkpoint. It is not yet a supported promise because reviewable real-workspace capture, separate provider-service identity and credential isolation, network recovery, revocation, repeated laptop-off evidence, the no-terminal journey, and complete Land remain pending.
+One user lifts one active coding project from macOS into an isolated persistent Linux workspace, continues Codex through an existing OpenAI interface, and safely reconciles the result back to the laptop. Founder-only generated-fixture spikes have observed direct phone-to-Ubuntu-EC2 control, one full stop/start recovery with exact post-restart folder binding and guarded approval/proof evidence, and live clean and conflicted Land paths from EC2/EBS through exact versioned S3 recovery to the Mac. The clean pass restored and imported immutable `0004-land-final`, applied the reconciliation, stored the exact guest acknowledgement, returned ownership to `LOCAL_PRIMARY`, and stopped EC2. Fresh run `p0-20260902183748-a7b1` sealed and restore-tested `0002-land-final`, returned `NEEDS_REVIEW` for a deliberate same-file conflict, left local state untouched and both sides recoverable, kept ownership `LANDING` and the runner fenced, retained compute, and returned `changed: false` on retry. It is not yet a supported promise because reviewable arbitrary real-workspace capture, a customer UI/helper, automatic offline-helper wake, conflict-resolution UI, separate provider-service identity and credential isolation, network recovery, revocation, broader repetition and interruption coverage, and the no-terminal journey remain pending.
 
 ## Current phase
 
-Phase 0: the provider path, three private-Git cloud checkpoints, and one full EC2 stop/start phone recovery are evidenced once. The immediate build is conflict-safe Land on the disposable fixture, followed by a reviewable real-workspace capture flow and the first complete real round trip. Service-identity and credential isolation, network recovery, revocation, the zero-terminal journey, and repetition remain promotion gates. See [`CURRENT_STATE.md`](CURRENT_STATE.md) and [`ROADMAP.md`](ROADMAP.md).
+Phase 0: the provider path, private-Git cloud checkpoints, one full EC2 stop/start phone recovery, one clean disposable-fixture round trip, and one fresh deliberate-conflict round trip are evidenced. The first clean Land attempt's `/run` record-directory permission failure resumed safely from the same durable `0004-land-final`; the fix was tested and the retry completed. Conflict run `p0-20260902183748-a7b1` stopped safely at `NEEDS_REVIEW` around restore-tested `0002-land-final` and replayed idempotently. The immediate product boundary is a reviewable arbitrary-workspace manifest and customer helper/UI path. H6 remains open: conflict resolution, automatic offline-helper wake, broader repetition and interruption coverage, service-identity and credential isolation, production isolation, network recovery, revocation, the zero-terminal journey, and launch readiness remain gates. See [`CURRENT_STATE.md`](CURRENT_STATE.md) and [`ROADMAP.md`](ROADMAP.md).
 
 ## Knowledge-base maintenance
 

@@ -4,7 +4,7 @@ Last updated: 2026-09-02
 
 ## Measurement principle
 
-Measure the completed behavior Lift exists to create. Do not substitute page views, prompts, runtime hours, or waitlist size for successful laptop-independent handoffs.
+Measure the completed behavior Lift exists to create. Do not substitute page views, prompts, runtime hours, agent count, or waitlist size for successful laptop-independent work and retained workspace use.
 
 ## North-star event
 
@@ -22,9 +22,11 @@ It occurs when one workspace:
 
 Track weekly acknowledged closed-laptop loops and the number of users completing at least one.
 
+This remains the beachhead activation event. After persistent workspace use ships, the long-term north-star unit becomes a `weekly useful workspace`: one durable workspace that completes at least one user-accepted agent task during the week without environment reconstruction. Segment it by local, GitHub, or empty origin; mobile or desktop launch; provider mix; agent count; and human participant count without collecting repository identity or task contents.
+
 If provider telemetry cannot prove phone activity, use the strongest available provider readiness signal plus an explicit lightweight user confirmation. Never infer “laptop closed” merely from a disconnected socket.
 
-The founder Phase 0 run is technical feasibility evidence, not an activation event: it used a generated fixture, manual terminal steps, and no complete Land. No user is activated until the full acknowledged loop above passes. See [`CURRENT_STATE.md`](CURRENT_STATE.md).
+The 2026-09-02 founder Phase 0 runs are technical feasibility evidence, not activation events. The first completed a clean acknowledged round trip on the generated disposable fixture through real EC2/EBS/S3 and the Mac: exact `0004-land-final` was restored and imported, reconciliation returned `APPLIED`, the guest stored the exact acknowledgement, ownership returned to `LOCAL_PRIMARY`, and EC2 stopped. Fresh generated-fixture run `p0-20260902183748-a7b1` then passed a deliberate same-file conflict: restore-tested `0002-land-final` remained durable, reconciliation returned `NEEDS_REVIEW`, ownership remained `LANDING`, the original local fixture was untouched, both local and cloud sides remained recoverable, the runner stayed fenced, compute was retained, and retry returned the same result with `changed: false`. Both runs still used founder-operated terminal steps and did not exercise an arbitrary real workspace, customer UI/helper, automatic offline-helper wake, or conflict-resolution UI. H6 and private-alpha activation remain unaccepted; broader repetition and interruption coverage, production isolation, network recovery, revocation, and the no-terminal journey remain gates. No customer is activated until the full product loop above passes. See [`CURRENT_STATE.md`](CURRENT_STATE.md).
 
 ## Activation definition
 
@@ -55,6 +57,7 @@ activated
 | `provider_connect_completed` | provider, elapsed_ms, result | Reusable connection is ready. |
 | `provider_connect_failed` | provider, safe error class, stage | Connection needs recovery. |
 | `workspace_selected` | workspace_id, repository class, local OS | Local folder is approved for inspection. |
+| `workspace_created` | workspace_id, origin class, runtime class | A durable workspace exists from local, GitHub, or empty/template origin. |
 | `manifest_reviewed` | workspace_id, included counts, excluded counts, exceptions | Transfer boundary is approved. |
 | `liftoff_started` | workspace_id, provider, warm_or_cold | One-button handoff begins. |
 | `liftoff_stage_completed` | workspace_id, stage, elapsed_ms | Diagnoses where time is spent. |
@@ -62,20 +65,33 @@ activated
 | `safe_to_close_failed` | workspace_id, safe error class, stage | Claim was withheld. |
 | `local_helper_offline` | workspace_id | Supporting signal, not proof of lid closure. |
 | `provider_continuation_confirmed` | workspace_id, evidence class | Existing provider client reached the Lift session. |
+| `agent_launch_requested` | workspace_id, provider, launch surface, execution mode, initiator class | A human or agent asks to begin a new task. |
+| `agent_launch_bound` | workspace_id, provider, launch surface, execution mode, binding evidence class, elapsed_ms | A new task is verified in the intended workspace. |
+| `agent_task_completed` | workspace_id, provider, execution mode, result class, accepted | An agent finishes with a reviewable result. |
+| `agent_task_stopped` | workspace_id, provider, reason class | A user, policy, or runtime stops an agent task. |
+| `shared_write_overlap_detected` | workspace_id, opaque task IDs, overlap class | Shared-mode tasks touched overlapping state. |
+| `shared_write_recovered` | workspace_id, recovery class, result | A collision or overwrite was preserved or restored. |
+| `browser_session_started` | workspace_id, mode, authenticated, agent count | A scoped headless or visible browser capability begins. |
+| `browser_takeover_completed` | workspace_id, result class, elapsed_ms | A user completes a human-only browser step without recording its contents. |
+| `collaborator_invited` | workspace_id, role | A team experiment begins. |
+| `collaborator_joined` | workspace_id, role, auth source class | An invited participant enters the workspace. |
 | `cloud_checkpoint_created` | workspace_id, revision, changed counts | Durable work exists. |
 | `land_started` | workspace_id, initiated surface | Return begins. |
 | `land_checkpoint_created` | workspace_id, revision, elapsed_ms | Final cloud state is durable. |
 | `land_merge_completed` | workspace_id, clean_or_conflicted, changed counts | Private three-way merge finished. |
 | `land_local_applied` | workspace_id, elapsed_ms | Verified result reached the local folder. |
 | `land_acknowledged` | workspace_id, revision | Ownership returned to local. |
-| `session_ledger_sealed` | workspace_id, opaque session_id, checkpoint_count, clean_or_conflicted | Restorable history was retained after Land. |
-| `land_needs_review` | workspace_id, conflict classes and counts | Both copies were preserved. |
+| `session_ledger_sealed` | workspace_id, opaque session_id, checkpoint_count, final outcome class | Restorable history was retained after acknowledged clean Land, explicit conflict resolution, or another explicit session finish. |
+| `land_needs_review` | workspace_id, conflict classes and counts | Both copies were preserved and this Land operation remains unresolved. |
 | `workspace_stopped` | workspace_id, reason | Compute stopped without deleting state. |
 | `workspace_deleted` | workspace_id, retention outcome | User requested deletion. |
 | `deposit_paid` | user_id, offer version | Behavioral willingness-to-pay evidence. |
 | `subscription_started` | user_id, package version | Paid conversion. |
+| `subscription_renewed` | user_id, package version, renewal ordinal | A user paid for a subsequent month. |
 
 For `safe_to_close_reached` and `provider_continuation_confirmed`, record nonsecret enumerated evidence classes rather than a generic success boolean. The current experimental classes distinguish server project registration from `folder-bound-project-unassigned`, a guarded approval inference from a provider-attributed decision, and a restore-tested following checkpoint from a merely created checkpoint. Also record the verdict validity interval. Never emit an analytics property that implies a specific approval decision, responder identity, controller project assignment, or cryptographic laptop-off attestation when the underlying protocol did not provide it.
+
+Do not emit `session_ledger_sealed` merely because a conflict is safely preserved. An unresolved `NEEDS_REVIEW` operation emits `land_needs_review` and keeps its recovery evidence open; sealing occurs only after an explicit resolution or finish policy reaches a real terminal outcome.
 
 ## Privacy rules
 
@@ -114,6 +130,24 @@ workspace selected -> manifest approved -> Lift Off -> safe-to-close
 safe-to-close -> provider continuation -> cloud change -> Land acknowledged
 ```
 
+### Persistent workspace funnel
+
+```text
+workspace created -> new task launched -> useful result accepted -> workspace reused on another day
+```
+
+### Multi-agent funnel
+
+```text
+first task running -> second task launched -> overlap handled -> useful result accepted
+```
+
+### Team-lite funnel
+
+```text
+workspace retained -> collaborator invited -> collaborator joined -> shared useful task completed
+```
+
 ### Commercial funnel
 
 ```text
@@ -135,6 +169,14 @@ Segment every funnel by provider, recipe version, runtime image, helper version,
 - percentage of loops requiring terminal or founder intervention;
 - percentage of users who confirm the laptop was actually closed;
 - handoffs per activated user per week.
+- new mobile-launched tasks while the originating laptop is offline;
+- weekly useful workspaces;
+- multi-day workspace reuse without reconstruction;
+- useful agent tasks per retained workspace;
+- workspaces with two or more agents;
+- workspaces used by two or more agent providers or execution locations;
+- shared, isolated, and read-only mode selection and completion;
+- collaborator invitation, join, and retained team-workspace rates;
 
 ### Retention
 
@@ -156,6 +198,9 @@ Segment every funnel by provider, recipe version, runtime image, helper version,
 - recovery-journal activations;
 - false safe-to-close incidents;
 - data-loss or silent-overwrite incidents.
+- unattributed workspace mutations;
+- shared-mode overlap detection and recovery outcomes;
+- cross-agent browser or secret exposure incidents;
 
 ### Business
 
@@ -213,6 +258,18 @@ Ask at moments where memory is fresh:
 
 > Did you lack the need, avoid Lift, or use another workaround?
 
+### After the first new mobile launch
+
+> What would you have done if this workspace had not been available from your phone?
+
+### After the first multi-agent task
+
+> Why did you run these tasks together, and did shared or isolated work match what you expected?
+
+### After a collaborator joins
+
+> Did sharing the functioning workspace remove setup or coordination work that GitHub alone did not?
+
 Store structured answers and concise notes without source-code or transcript content.
 
 ## Experiment record
@@ -247,5 +304,9 @@ Review:
 8. security or reliability incidents;
 9. compute and support cost;
 10. top observed reason for abandonment.
+11. weekly useful workspaces and multi-day reuse;
+12. new mobile launches and correctly bound starts;
+13. multi-agent overlap and recovery;
+14. team invitations and repeated shared use when enabled.
 
 End the review with one product decision and one validation action for the next week.

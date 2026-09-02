@@ -711,6 +711,85 @@ class LandFixtureTests(unittest.TestCase):
             "user work\n", (self.workspace / "RACE.md").read_text(encoding="utf-8")
         )
 
+    def test_replacement_race_during_preservation_restores_user_bytes(self) -> None:
+        (self.cloud / "AAA_CLOUD.md").write_text("cloud addition\n", encoding="utf-8")
+        (self.cloud / "REMOTE_TEST.md").write_text(
+            "cloud replacement\n", encoding="utf-8"
+        )
+        cloud = self.checkpoint_cloud()
+        original_preserve = land_module._preserve_original
+        raced = False
+
+        def race_preserve(**kwargs: object) -> None:
+            nonlocal raced
+            if not raced and kwargs["name"] == "REMOTE_TEST.md":
+                raced = True
+                descriptor = os.open(
+                    str(kwargs["name"]),
+                    os.O_WRONLY | os.O_TRUNC,
+                    dir_fd=int(kwargs["parent_descriptor"]),
+                )
+                try:
+                    os.write(descriptor, b"concurrent local work\n")
+                    os.fsync(descriptor)
+                finally:
+                    os.close(descriptor)
+            original_preserve(**kwargs)  # type: ignore[arg-type]
+
+        with mock.patch.object(land_module, "_preserve_original", race_preserve):
+            with self.assertRaisesRegex(LandError, "local path changed during Land"):
+                self.land(cloud)
+
+        self.assertTrue(raced)
+        self.assertEqual(
+            b"concurrent local work\n",
+            (self.workspace / "REMOTE_TEST.md").read_bytes(),
+        )
+        self.assertFalse((self.workspace / "AAA_CLOUD.md").exists())
+        self.assertFalse((self.operation_root / "land-receipt.json").exists())
+        journal = json.loads(
+            (self.operation_root / "apply-journal.json").read_text(encoding="utf-8")
+        )
+        self.assertEqual("ROLLED_BACK", journal["phase"])
+
+    def test_final_cutover_revalidation_restores_late_user_bytes(self) -> None:
+        (self.cloud / "AAA_CLOUD.md").write_text("cloud addition\n", encoding="utf-8")
+        (self.cloud / "REMOTE_TEST.md").write_text(
+            "cloud replacement\n", encoding="utf-8"
+        )
+        cloud = self.checkpoint_cloud()
+        original_validate = land_module._validate_preserved_originals
+        raced = False
+
+        def race_validation(journal: dict) -> None:
+            nonlocal raced
+            operation = next(
+                item
+                for item in journal["operations"]
+                if item["path"] == "REMOTE_TEST.md"
+            )
+            Path(operation["movedPath"]).write_bytes(b"late local descriptor write\n")
+            raced = True
+            original_validate(journal)
+
+        with mock.patch.object(
+            land_module, "_validate_preserved_originals", race_validation
+        ):
+            with self.assertRaisesRegex(LandError, "local path changed during Land"):
+                self.land(cloud)
+
+        self.assertTrue(raced)
+        self.assertEqual(
+            b"late local descriptor write\n",
+            (self.workspace / "REMOTE_TEST.md").read_bytes(),
+        )
+        self.assertFalse((self.workspace / "AAA_CLOUD.md").exists())
+        self.assertFalse((self.operation_root / "land-receipt.json").exists())
+        journal = json.loads(
+            (self.operation_root / "apply-journal.json").read_text(encoding="utf-8")
+        )
+        self.assertEqual("ROLLED_BACK", journal["phase"])
+
 
 if __name__ == "__main__":
     unittest.main()

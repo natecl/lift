@@ -6,7 +6,7 @@ Last updated: 2026-09-02
 
 During alpha, Lift is a high-trust infrastructure product. Fast growth is less important than knowing where every workspace revision is, which process can write it, and how a user gets their work back.
 
-Lift is not in external alpha yet. The current environment is a founder-only disposable feasibility workspace with one passing provider-path run and no complete Land or real-workspace capture flow. The point-in-time runtime state and exact remaining gates are in [`CURRENT_STATE.md`](CURRENT_STATE.md); they must be re-read rather than inferred from a cached safe-to-close value.
+Lift is not in external alpha yet. The founder-only disposable feasibility environment has a passing provider path plus live clean and conflicted Land evidence through real EC2, encrypted EBS, exact versioned S3 recovery, and the Mac. The clean run restored and imported immutable `0004-land-final`, reconciled with outcome `APPLIED`, persisted the matching guest acknowledgement, returned ownership to `LOCAL_PRIMARY`, and stopped EC2. Fresh generated-fixture run `p0-20260902183748-a7b1` deliberately changed the same file on both sides and preserved restore-tested `0002-land-final` with outcome `NEEDS_REVIEW`: the lease remained `LANDING`, local bytes were untouched, both sides remained recoverable, the runner stayed fenced, compute was retained, and retry returned `changed: false`. This is not evidence for arbitrary real-workspace capture, automatic offline-helper wake, conflict-resolution UI, or the customer experience. The point-in-time runtime state and exact remaining gates are in [`CURRENT_STATE.md`](CURRENT_STATE.md); they must be re-read rather than inferred from a cached safe-to-close value.
 
 ## Supported alpha envelope
 
@@ -32,7 +32,7 @@ Unsupported does not mean “probably works.” It means Lift detects the condit
 - confirm the user matches the ICP;
 - choose a real noncritical repository;
 - confirm a supported provider account and phone application;
-- explain that direct Codex phone continuation, structural EC2 restart recovery, exact post-restart folder binding, the guarded approval/proof turn, and the following restore-tested checkpoint have passed once as founder-only evidence; separate provider-service identity and credential isolation, network recovery, revocation, repetition, complete Land, the zero-terminal journey, and provider-policy review remain gated;
+- explain that direct Codex phone continuation, structural EC2 restart recovery, exact post-restart folder binding, the guarded approval/proof turn, the following restore-tested checkpoint, and one clean plus one deliberate-conflict disposable-fixture Land round trip have passed as founder-only evidence; arbitrary real-workspace manifests, conflict-resolution UI, automatic offline-helper wake, separate provider-service identity and credential isolation, network recovery, revocation, repeated users and runs, broader interruption coverage, the zero-terminal journey, and provider-policy review remain gated;
 - identify sensitive files and expected exclusions;
 - set a conservative compute cap;
 - establish the support channel and emergency stop path;
@@ -165,9 +165,10 @@ Record, prioritize by impact on the full loop, and do not disguise it as success
 
 ### Local helper is offline during Land
 
-- complete the final cloud checkpoint;
-- stop compute if requested;
-- keep the workspace in `LANDING`;
+- complete and independently restore-test the exact final cloud checkpoint;
+- keep the workspace in `LANDING` and keep cloud writers fenced;
+- in the current implementation, do not perform default compute cleanup before local acknowledgement and lease return;
+- if a future product offers an explicit pre-acknowledgement pause, treat it as a separate recoverable compute action that preserves the exact `C` identity and does not complete Land or return ownership;
 - notify the user that files are safe and waiting for the Mac;
 - apply automatically only after the original folder and local precondition are verified.
 
@@ -179,6 +180,8 @@ Record, prioritize by impact on the full loop, and do not disguise it as success
 - offer the isolated worktree or sibling recovery folder;
 - keep cloud revision cleanup paused until explicit resolution.
 
+Fresh generated-fixture run `p0-20260902183748-a7b1` exercised this stop condition once: durable restore-tested `0002-land-final`, untouched local bytes, and separate local/cloud refs remained recoverable under `NEEDS_REVIEW`; the lease stayed `LANDING`, the runner remained fenced, compute was retained, and an idempotent retry reported `changed: false`. Treat that as founder fixture evidence, not proof that review, resolution, or recovery is operable by an alpha user.
+
 ### Local application interrupted
 
 - read the durable operation journal;
@@ -186,6 +189,8 @@ Record, prioritize by impact on the full loop, and do not disguise it as success
 - complete or restore deterministically;
 - never rerun the whole delta blindly;
 - acknowledge cloud only after final verification.
+
+The 2026-09-02 founder Land run exercised this rule at the distributed boundary. Its first attempt failed on record-directory permissions under `/run` after immutable `C` was already durable. The retry resumed from that same `0004-land-final` identity rather than recapturing cloud state; after the permission fix and regression test, reconciliation, acknowledgement, lease return, and compute stop completed. Preserve that recovery identity in every operational retry.
 
 ### Cost cap reached
 

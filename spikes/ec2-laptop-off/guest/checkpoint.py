@@ -19,6 +19,8 @@ import sys
 import tempfile
 from typing import Any
 
+import landing
+
 
 WORKSPACE_ROOT = Path("/home/lift/workspaces")
 LEDGER_ROOT = Path("/var/lib/lift/ledger")
@@ -978,6 +980,55 @@ def _create_checkpoint_locked(
         atomic_json(manifest_path, manifest)
     manifest_file_sha = sha256_file(manifest_path)
 
+    # A final recovery bundle must retain the complete private Git history from
+    # every earlier checkpoint, not only the refs visible in the latest cloud
+    # worktree. Reflog-only commits may have disappeared from the live repo by
+    # the time Land runs, so carry their already-pinned refs forward.
+    recovery_history_refs: list[dict[str, Any]] = []
+    recovery_history_by_ref: dict[str, str] = {}
+    for prior in checkpoints:
+        if prior.get("ordinal", 0) >= ordinal:
+            continue
+        prior_history = prior.get("recoveryHistoryRefs", prior.get("historyRefs", []))
+        if not isinstance(prior_history, list):
+            raise CheckpointError("prior checkpoint recovery history is invalid")
+        for item in prior_history:
+            if (
+                not isinstance(item, dict)
+                or not isinstance(item.get("ref"), str)
+                or not isinstance(item.get("objectId"), str)
+            ):
+                raise CheckpointError("prior checkpoint recovery history is invalid")
+            previous = recovery_history_by_ref.setdefault(item["ref"], item["objectId"])
+            if previous != item["objectId"]:
+                raise CheckpointError("prior checkpoint recovery history changed")
+            if previous == item["objectId"] and not any(
+                saved.get("ref") == item["ref"] for saved in recovery_history_refs
+            ):
+                recovery_history_refs.append(dict(item))
+    for item in history_refs:
+        previous = recovery_history_by_ref.setdefault(item["ref"], item["objectId"])
+        if previous != item["objectId"]:
+            raise CheckpointError("checkpoint recovery history ref changed")
+        if not any(saved.get("ref") == item["ref"] for saved in recovery_history_refs):
+            recovery_history_refs.append(dict(item))
+
+    # Older runtime releases created bundles that included only the history
+    # refs for that checkpoint. Preserve an existing immutable bundle's honest
+    # ref map rather than claiming that it contains newly cumulative history.
+    if existing_record is not None and "recoveryHistoryRefs" not in existing_record:
+        recovery_history_refs = [dict(item) for item in history_refs]
+
+    recovery_checkpoint_refs = [
+        {"ref": baseline_ref, "objectId": baseline_commit},
+        *[
+            {"ref": item["ref"], "objectId": item["commit"]}
+            for item in checkpoints
+            if item.get("ordinal", 0) < ordinal
+        ],
+        {"ref": checkpoint_ref, "objectId": commit},
+    ]
+
     bundle_refs = [baseline_ref]
     for item in checkpoints:
         if item.get("ordinal", 0) > ordinal:
@@ -987,7 +1038,7 @@ def _create_checkpoint_locked(
             bundle_refs.append(item_ref)
     if checkpoint_ref not in bundle_refs:
         bundle_refs.append(checkpoint_ref)
-    for item in history_refs:
+    for item in recovery_history_refs:
         if item["ref"] not in bundle_refs:
             bundle_refs.append(item["ref"])
 
@@ -1056,6 +1107,8 @@ def _create_checkpoint_locked(
         "gitSnapshotSha256": git_snapshot["sha256"],
         "fixturePolicy": fixture_policy,
         "historyRefs": history_refs,
+        "recoveryHistoryRefs": recovery_history_refs,
+        "recoveryCheckpointRefs": recovery_checkpoint_refs,
         "manifestPath": str(manifest_path),
         "manifestSha256": manifest["manifestSha256"],
         "manifestFileSha256": manifest_file_sha,
@@ -1079,6 +1132,8 @@ def _create_checkpoint_locked(
             "gitSnapshotSha256",
             "fixturePolicy",
             "historyRefs",
+            "recoveryHistoryRefs",
+            "recoveryCheckpointRefs",
             "manifestSha256",
             "manifestFileSha256",
             "bundleSha256",
@@ -1112,6 +1167,8 @@ def _create_checkpoint_locked(
             "gitSnapshotSha256",
             "fixturePolicy",
             "historyRefs",
+            "recoveryHistoryRefs",
+            "recoveryCheckpointRefs",
             "manifestSha256",
             "manifestFileSha256",
             "bundleSha256",
@@ -1181,9 +1238,10 @@ def main() -> int:
     parser.add_argument("--ordinal", required=True, type=int)
     parser.add_argument("--label", required=True)
     parser.add_argument("--expected-volume-id", required=True)
-    parser.add_argument("--required-path", required=True)
-    parser.add_argument("--required-sha256", required=True)
-    parser.add_argument("--required-size", required=True, type=int)
+    parser.add_argument("--land-final", action="store_true")
+    parser.add_argument("--required-path")
+    parser.add_argument("--required-sha256")
+    parser.add_argument("--required-size", type=int)
     args = parser.parse_args()
     try:
         if os.geteuid() != 0:
@@ -1192,6 +1250,37 @@ def main() -> int:
         workspace = WORKSPACE_ROOT / args.workspace_id
         if workspace.stat().st_uid != lift_user.pw_uid:
             raise CheckpointError("workspace is not owned by the isolated lift user")
+        evidence_values = (
+            args.required_path,
+            args.required_sha256,
+            args.required_size,
+        )
+        if args.land_final:
+            if args.label != "land-final" or any(
+                value is not None for value in evidence_values
+            ):
+                raise CheckpointError(
+                    "Land final checkpoint must use its canonical label without proof arguments"
+                )
+            landing_state = landing.status_landing(workspace=workspace)
+            if (
+                landing_state.get("runId") != args.run_id
+                or landing_state.get("workspaceId") != args.workspace_id
+                or landing_state.get("workspaceVolumeId") != args.expected_volume_id
+                or landing_state.get("lease") != "LANDING"
+                or landing_state.get("phase")
+                not in {
+                    landing.PHASE_CLOUD_FROZEN,
+                    landing.PHASE_FINAL_CHECKPOINT_RECORDED,
+                }
+            ):
+                raise CheckpointError(
+                    "Land final checkpoint requires the exact frozen workspace lease"
+                )
+        elif any(value is None for value in evidence_values):
+            raise CheckpointError(
+                "proof checkpoint requires an exact path, SHA-256, and size"
+            )
         result = create_checkpoint(
             workspace=workspace,
             ledger=LEDGER_ROOT / f"{args.run_id}.git",
@@ -1209,7 +1298,7 @@ def main() -> int:
         )
         print(json.dumps(result, sort_keys=True))
         return 0
-    except (CheckpointError, KeyError, OSError) as exc:
+    except (CheckpointError, landing.LandingError, KeyError, OSError) as exc:
         print(json.dumps({"error": str(exc)}), file=sys.stderr)
         return 2
 

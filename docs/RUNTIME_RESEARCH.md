@@ -12,7 +12,7 @@ This decision optimizes for the fastest credible test of Lift's core promise:
 
 The first implementation is not a commitment to EC2 as the permanent production runtime. It deliberately chooses a complete Linux machine while the product risk is continuity and provider compatibility rather than machine density.
 
-The current runtime evidence, failure sequence, security boundary, and next Land slice are summarized in [`CURRENT_STATE.md`](CURRENT_STATE.md).
+The current runtime evidence, failure sequence, security boundary, accepted generated-fixture Land lifecycle, and next real-workspace manifest slice are summarized in [`CURRENT_STATE.md`](CURRENT_STATE.md).
 
 ## Product-boundary finding
 
@@ -146,6 +146,8 @@ Stopping an EC2 instance removes compute charges but does not preserve RAM or ru
 - The final passing runtime used the managed Codex CLI and App Server `0.152.1`; the guest-bootstrap metadata still records the originally installed CLI `0.152.0`.
 - The approval observer and historical verifier agreed on the request, resolution, two exact command lifecycles, and completed turn. The provider protocol still omits selected decision and responder identity, so the approval claim remains a guarded founder-only inference.
 - The runtime remains unsuitable for external alpha until provider credentials are isolated from the workspace Unix identity and the mutable AWS CLI/Codex installer downloads are replaced with signed or content-addressed inputs.
+- One live generated-fixture Land returned cleanly from EC2/EBS through exact versioned S3 recovery to the Mac: exact `C` was imported and applied, both sides acknowledged it, ownership returned to local, and compute stopped afterward.
+- A separate fresh generated-fixture Land deliberately conflicted on one file and stopped at `NEEDS_REVIEW`/`LANDING` with exact `B/L/C`, untouched local state, a fenced runner, no acknowledgement or cleanup, and an idempotent no-op retry.
 
 Official references:
 
@@ -158,7 +160,7 @@ Official references:
 
 Cloudflare Sandbox and Containers are useful for isolated execution, terminals, preview routing, and edge control-plane work. Their local disk and running process state are not currently the correct source of truth for a living personal workspace. A sleeping or replaced container can lose that local state, and durable behavior requires copying state to an external store and restoring it later.
 
-That reconstruction model can work for disposable jobs. It works against Lift's first promise that the cloud computer simply remains the user's computer.
+That reconstruction model can support replaceable compute and is compatible with Lift's north star when external persistence, identity, and recovery are engineered correctly. It is not the fastest first authoritative workspace substrate: Lift would need to build and prove the durable filesystem, checkpoint, restore, writer-fencing, and failure semantics outside the container before testing the user experience, while EC2 plus EBS already supplies the required block-storage boundary.
 
 Possible later Cloudflare roles:
 

@@ -4,9 +4,13 @@ Last updated: 2026-09-02
 
 This document defines the selected prototype direction. The first runtime is Ubuntu EC2 with EBS. One provider-blind workload runner executes any reviewed user command; Codex remote control is the first recipe used to validate it.
 
+The product north star is broader than the implemented prototype: one durable project workspace can host multiple human and agent participants, accept new mobile-launched tasks while laptops are offline, provide controlled internet/browser/computer capabilities, and originate from a local folder, GitHub, or an empty template. See [`PRODUCT_NORTH_STAR.md`](PRODUCT_NORTH_STAR.md).
+
 ## Current implementation cut line
 
-The Phase 0 Python harness implements the EC2/EBS/S3 runtime driver, generated-fixture reconstruction, provider-blind runner, experimental Codex recipe/connector, stop/start recovery, challenge-bound readiness evidence, and immutable restore-tested cloud checkpoints. Its fixture-only state engine now also implements the local half of Land: baseline-pinned policy, private `L` capture, conservative `B/L/C` reconciliation, isolated merge, crash-resumable application or rollback, structured conflict preservation, and a Git-backed receipt. It does not implement the desktop helper, dashboard, product control plane, secret broker, arbitrary real-workspace manifest, or the live cloud freeze/final-checkpoint/import/acknowledgement path required for complete Land. The next architectural slice connects the proven local engine to that lifecycle as one resumable user operation. See [`STATE_SYNC.md`](STATE_SYNC.md) and [`CURRENT_STATE.md`](CURRENT_STATE.md).
+The Phase 0 Python harness implements the EC2/EBS/S3 runtime driver, generated-fixture reconstruction, provider-blind runner, experimental Codex recipe/connector, stop/start recovery, challenge-bound readiness evidence, immutable restore-tested cloud checkpoints, and the fixture-only distributed Land transaction. On 2026-09-02, a clean transaction completed against the founder's live disposable environment: it froze writers on the real EC2/EBS workspace, sealed immutable checkpoint `0004-land-final` as `C`, restored and imported its exact versioned S3 objects on the Mac, reconciled with outcome `APPLIED`, persisted the exact acknowledgement on the guest, returned the lease to `LOCAL_PRIMARY`, and stopped EC2. An initial record-directory permission failure under `/run` occurred only after `C` was durable; retry safely reused that same `C`, and the permission repair was tested before successful completion. Fresh generated-fixture run `p0-20260902183748-a7b1` then exercised deliberate same-file divergence: Land sealed and restore-tested immutable `0002-land-final`, returned `NEEDS_REVIEW`, held ownership at `LANDING`, left the original local fixture untouched, retained independently recoverable local and cloud sides, kept the runner fenced, retained compute, and returned `changed: false` on retry.
+
+This is founder-only generated-fixture evidence, not H6 acceptance or a customer or public-compatibility result. The repository still does not implement the desktop helper, dashboard, product control plane, secret broker, arbitrary real-workspace manifest, automatic wake and continuation when the local helper is offline, or conflict-resolution UI. Broader repetition and interruption coverage, production workspace isolation, provider-service credential isolation, network recovery, revocation, and the no-terminal journey remain unproven. See [`STATE_SYNC.md`](STATE_SYNC.md) and [`CURRENT_STATE.md`](CURRENT_STATE.md).
 
 ## Architecture goals
 
@@ -18,6 +22,29 @@ The Phase 0 Python harness implements the EC2/EBS/S3 runtime driver, generated-f
 - Permit a future BYO AWS mode without requiring it for the first demo.
 - Preserve each agent provider's existing mobile and desktop workflow rather than building a Lift interaction layer.
 - Make the supported journey one button after first-time provider connection, with no terminal or infrastructure vocabulary.
+- Give each workspace a stable identity independent of origin, agent provider, participant, and compute instance.
+- Accept new provider-native mobile tasks after compute stop and wake without a laptop relay.
+- Support multiple agent tasks using explicit shared, isolated, or read-only execution modes.
+- Add project-scoped internet, browser, and computer capabilities without importing personal-device identity.
+- Use GitHub as an optional source, permission, review, and publication layer without making it the workspace itself.
+- Treat Lift-hosted runtimes and supported provider-owned cloud computers as replaceable execution locations attached to one durable project identity.
+
+## North-star logical model
+
+```text
+Workspace
+├── origins: local, GitHub, empty/template
+├── canonical project state and services
+├── capabilities: terminal, network, browser, computer, previews
+├── identities: members, agents, tasks, credentials, browser contexts
+├── history: checkpoints, activity, provenance, recovery
+├── task modes: shared, isolated, read-only
+└── execution locations
+    ├── Lift-hosted workspace runtime
+    └── supported provider-owned agent computer
+```
+
+The current one-user, one-workspace, one-runner harness is a deliberately narrow implementation of this model. Product-direction additions below are architectural requirements, not claims that the code already implements them.
 
 ## System components
 
@@ -42,12 +69,15 @@ The helper must never modify the project merely to inspect it. A CLI may expose 
 Provides the consumer-facing experience:
 
 - Connections tab for provider account setup, health, reconnect, and revoke;
-- Workspaces tab with one dominant `Lift Off` action;
+- Workspaces tab with creation from this computer, GitHub, or an empty template;
+- one dominant `Lift Off` action for a selected local workspace;
 - plain-language progress;
 - transfer review and exceptions;
 - compute status and cost visibility without infrastructure terminology;
 - final `Ready. You can close this laptop.` state;
 - stop, wake, Land, sync status, snapshot, and delete controls.
+- agent-task launch, execution mode, activity, pause, stop, and recovery controls;
+- workspace participants, capabilities, permissions, and GitHub connection status.
 
 The dashboard does not host the agent conversation. After Lift Off, it hands the user to the provider's existing phone application.
 
@@ -63,6 +93,11 @@ Responsible for:
 - event and audit history;
 - compute budgets and idle timers;
 - connection state, remote-workload process status, and signed recipe metadata.
+- workspace origins and durable identity;
+- workspace membership and task identities;
+- agent execution modes, desired state, capability grants, and provenance;
+- mobile launch routing and wake requests;
+- GitHub installation, repository, permission, and explicit publication metadata.
 
 The control plane should not receive raw workspace secrets when a brokered alternative is available.
 
@@ -75,6 +110,8 @@ An isolated Linux machine or microVM that contains:
 - a small Lift runtime daemon;
 - terminal and process supervision;
 - development preview routing;
+- bounded outbound internet access;
+- headless Chromium, and later visible browser/computer sessions through isolated project-scoped contexts;
 - telemetry limited to operational events;
 - no cross-workspace filesystem access.
 
@@ -102,7 +139,7 @@ The runner is responsible for:
 
 - validating and displaying a user-owned recipe;
 - running approved installation and authentication commands;
-- supervising one arbitrary executable with explicit arguments and working directory;
+- supervising one or more arbitrary executables with explicit arguments, task identities, working directories, and capability grants;
 - running an optional idempotent post-start preparation command declared by the recipe;
 - evaluating an optional non-mutating semantic-readiness command independently of process health;
 - attaching a raw PTY internally so the connection manager can present provider-owned browser login and pairing through the dashboard;
@@ -117,7 +154,44 @@ Lift does not parse pairing output or proxy the agent conversation, approvals, o
 
 A user can select an executable, pinned version, arguments, approved persistent directories, network policy, and restart policy without waiting for a Lift integration. Lift or a provider may distribute reviewed recipe presets and narrow lifecycle connectors, but these never proxy the conversation or change the workspace, transfer, or Land layers. Raw PTY attachment is an advanced diagnostic tool, not part of first-class provider setup.
 
-### 7. Connection manager and recipes
+### 7. Agent task manager
+
+Deferred from the Phase 0 harness. It creates and supervises agent-task records independently of provider conversations.
+
+Each task declares:
+
+- initiating human or agent;
+- provider and reviewed workload recipe;
+- goal and workspace;
+- shared, isolated, or read-only execution mode;
+- working directory or isolated environment identity;
+- network, secret, browser, computer, and publication grants;
+- lifecycle, resource budget, activity provenance, result, and recovery checkpoint.
+
+Shared mode binds several task processes to the same working directory. The manager checkpoints before shared writes, records task-attributed process and observed file activity, detects overlapping writes, and exposes pause and stop controls. It must present visibility and recovery honestly rather than claim it can prevent every write performed by arbitrary shell commands.
+
+Isolated mode creates a worktree, branch, overlay, or copy-on-write environment and produces an explicit integration result. Read-only mode enforces nonmutation at the runtime boundary rather than relying only on an agent instruction.
+
+### 8. External agent-computer gateway
+
+Deferred from the initial product. This gateway lets a supported provider-owned cloud computer participate in a Lift task without making that computer the canonical workspace owner.
+
+An attachment negotiates:
+
+- authenticated provider, agent, task, workspace, and execution-location identities;
+- a short-lived scoped view of the approved project state;
+- shared, isolated, or read-only semantics that the provider can actually enforce;
+- permitted network, secret, browser, service, and publication capabilities;
+- change, command, result, and status provenance available from the provider;
+- checkpoint, conflict, cancellation, expiration, and reconciliation behavior.
+
+The preferred path is a supported provider API or workspace-attachment protocol. Depending on provider capability, the external computer may mount a remote state service, materialize a content-addressed task view, or work in an isolated copy whose result Lift imports. Lift must never imply low-latency shared-directory semantics when the actual integration is asynchronous cloning and reconciliation.
+
+If the only supported return channel is a Git branch or pull request, Lift records it as an external result and reconciles it through the project ledger. That is useful interoperability, but it is not the same as the agent joining the live workspace. Provider computers that expose no safe attachment or export boundary remain closed substitutes.
+
+An external worker's result is not a second whole-workspace `Land`. Lift first records an attributable task checkpoint and reconciles it into the canonical Lift workspace while preserving the prior project revision. If the user later Lands the project to a local computer, the accepted canonical workspace revision becomes cloud revision `C` in the ordinary `B/L/C` transaction. The gateway may reuse content hashes, quarantine import, Lift-private Git, and conflict-preservation primitives, but neither the provider VM nor the current EBS-specific guest journal becomes the workspace system of record.
+
+### 9. Connection manager and recipes
 
 The connection manager turns provider differences into one product lifecycle:
 
@@ -138,10 +212,11 @@ It is responsible for:
 - recovering, reconnecting, or requesting reauthentication;
 - exposing optional provider deep links or unmodified session URLs;
 - refusing to claim phone readiness when it cannot verify it.
+- accepting and verifying a newly launched provider-native mobile task after compute wake where the provider supports it.
 
 The connection recipe contains provider-specific data and, only when unavoidable, a small sandboxed connector implementation. It does not change workspace, transfer, Land, or generic runtime code. A healthy workload with a missing or wrong native project, root, controller, or required approval proof is `DEGRADED`; it is not restarted solely for that condition and never qualifies as `REMOTE_READY`. The current Codex spike keeps its nonsecret connector record under `/home/lift/.codex/lift/<workspace-id>/`, outside the provider-visible project. Before external alpha, the provider service and reusable credentials must also be isolated from the untrusted workspace workload by a separate service identity or an equivalently narrow brokered boundary. See [`EXPERIENCE.md`](EXPERIENCE.md) and [`REMOTE_RUNNER.md`](REMOTE_RUNNER.md).
 
-### 8. Runtime-provider driver
+### 10. Runtime-provider driver
 
 The runtime-provider driver isolates infrastructure-specific behavior:
 
@@ -154,13 +229,27 @@ The runtime-provider driver isolates infrastructure-specific behavior:
 
 EC2 and EBS are the first implementation. Daytona, Fly Machines, or another runtime should be adoptable without changing remote workload recipes.
 
-### 9. Preview gateway
+### 11. Preview gateway
 
 Deferred from the first slice. When added, it provides authenticated access to development ports without public port exposure. Each URL should be short-lived or protected by the user's Lift session.
 
-### 10. Secret broker
+### 12. Browser and computer capability service
+
+Deferred from the first coding-workspace alpha. It provides headless browser automation, visible browser sessions, visual computer use, and short-lived user takeover without exposing the workspace runtime directly.
+
+Browser profiles are project-scoped encrypted state, separate from project files and provider credentials. Concurrent agents receive separate contexts or screens by default. Sharing an authenticated browser identity is an explicit policy decision and never follows automatically from sharing a working directory.
+
+### 13. Secret broker
 
 Stores encrypted secret values or references and injects them only into authorized workspace processes. It should support revocation, rotation, access logging, and per-workspace scoping.
+
+### 14. GitHub integration
+
+Creates cloud-native workspaces from repositories, uses short-lived GitHub App credentials, reads repository permissions where appropriate, and publishes sanitized branches or pull requests only after explicit authorization. It never treats a repository clone as the complete workspace or pushes Lift-private checkpoint state.
+
+### 15. Workspace membership and authorization
+
+Deferred until solo repeat use. It begins with owner, member, and viewer roles plus per-task capability grants. Human membership, provider identities, browser identities, secrets, and agent tasks remain separately revocable.
 
 ## State model
 
@@ -190,6 +279,27 @@ Stores encrypted secret values or references and injects them only into authoriz
 - supported session identifier or transcript reference;
 - generated continuation summary;
 - recent tool results needed for continuity.
+- authenticated initiator and agent-task identity;
+- shared, isolated, or read-only execution mode;
+- capability grants and resource budget;
+- observed command and file-activity provenance;
+- collision, pause, stop, result, and integration state.
+
+### Participant state
+
+- workspace owner and members;
+- connected provider accounts and agent recipes;
+- per-participant roles and grants;
+- GitHub installation and repository permission evidence;
+- revocation and membership history.
+
+### Browser state
+
+- project-scoped profile identity;
+- agent context or screen identity;
+- encrypted persistence and recovery policy;
+- authentication and takeover state;
+- network, upload, download, clipboard, and external-action policy.
 
 ### Runtime state
 
@@ -225,19 +335,23 @@ Do not promise transparent process migration. Record restartable declarations:
 Lift uses an explicit ownership state machine for the first slice:
 
 ```text
-LOCAL_PRIMARY -> LIFTING -> CLOUD_PRIMARY -> LANDING -> LOCAL_PRIMARY
+LOCAL_PRIMARY -> LIFTING -> CLOUD_PRIMARY -> LANDING
+                                                |-- clean + acknowledged -> LOCAL_PRIMARY
+                                                `-- conflict -> NEEDS_REVIEW
+                                                    (lease remains LANDING)
 ```
 
 1. Cloud state engine checkpoints changed files into versioned manifests while the workspace is lifted.
-2. The user chooses `Land Workspace`; Lift pauses or stops workspace writers and creates a final durable cloud checkpoint.
-3. If the laptop is offline, the workspace remains `LANDING` and the checkpoint remains recoverable until the helper returns.
-4. Desktop helper reconnects and obtains the handoff baseline, current local manifest, and final cloud manifest.
-5. The helper downloads the cloud delta outside the project, verifies hashes, and rechecks the local precondition immediately before applying it.
-6. If local state still matches the handoff baseline, the helper applies the delta transactionally with a recovery journal and per-file atomic replacement.
-7. Lift captures local return state as a private synthetic commit and performs a three-way merge with the final cloud commit in an isolated worktree. A clean result is applied transactionally; conflicts remain recoverable in that worktree or a sibling copy.
-8. Only after the helper acknowledges the applied revision does Lift write an immutable Land receipt, return the ownership lease to local, and display `Your latest changes are back on this Mac.`
-9. Compute may stop before the laptop reconnects, but `LANDING` is not complete until local acknowledgement or the user explicitly chooses to keep the workspace cloud-only.
-10. The session ledger remains reachable and restorable after clean and conflicted merges; only temporary staging and unreferenced transfer data enter routine cleanup.
+2. The user chooses `Land Workspace`; the controller persists `LANDING`, the EBS record declares freeze intent, and Lift stops and fences every declared cloud writer.
+3. Lift captures exactly one immutable final cloud revision `C`, stores its bundle and manifest as exact versioned recovery objects, and independently restore-tests them.
+4. If the laptop is offline, the workspace remains `LANDING`, writers remain fenced, and exact `C` remains recoverable until the helper returns.
+5. The helper downloads those exact object versions outside the project, verifies them in quarantine, and imports only the allowlisted recovery refs into Lift-private state.
+6. Lift captures the current local workspace as private synthetic revision `L` without moving the user's branch, refs, real index, or working tree.
+7. Lift compares `B/L/C` and performs the three-way merge in an isolated worktree. A conflict stops at `NEEDS_REVIEW`, preserves all sides, keeps the lease `LANDING`, and creates no receipt, acknowledgement, or cleanup.
+8. For a clean result, the helper rechecks affected paths, applies the verified merge transactionally through a durable recovery journal, and verifies the final local manifest.
+9. Lift retains the immutable Land receipt and canonical local acknowledgement for exact `C`; the guest accepts only that matching acknowledgement. Only then does Lift return the lease to `LOCAL_PRIMARY` and display `Your latest changes are back on this Mac.`
+10. In the implemented fixture transaction, compute stops only after exact local and guest acknowledgement and lease return. A future explicitly designed offline pause may stop compute earlier after `C` is independently durable, but it cannot complete Land or return ownership.
+11. The session ledger remains reachable and restorable after clean and conflicted outcomes; only temporary staging and unreferenced transfer data enter routine cleanup.
 
 Never implement return as a blind directory mirror.
 
@@ -280,7 +394,7 @@ Provider transcripts, sessions, pairing codes, account state, and remote protoco
 
 The first Codex recipe is tested in two provider-owned modes:
 
-1. A headless Linux remote-control and pairing spike using the current experimental CLI commands. Single-run feasibility has passed, but it is not a supported product promise until recovery, repetition, isolation, policy, and Land promotion gates pass.
+1. A headless Linux remote-control and pairing spike using the current experimental CLI commands. The founder-only provider path and clean and deliberate-conflict fixture-round-trip paths have passed once, but this is not a supported product promise until broader recovery and interruption coverage, repetition, isolation, policy, explicit real-workspace review, conflict-resolution, offline-helper, and customer-experience promotion gates pass.
 2. The documented ChatGPT Desktop-to-SSH path. This validates Codex against the Lift workspace but still requires an awake Mac or Windows relay.
 
 Never expose Codex App Server directly on a public network. The official documentation recommends SSH, VPN, or mesh networking and labels the WebSocket transport experimental.
@@ -297,4 +411,11 @@ Never expose Codex App Server directly on a public network. The official documen
 - No cloud revision is deleted before a local helper acknowledges it or another recovery copy exists.
 - Automatic return sync never overwrites a locally divergent file silently.
 - Local and cloud are never both treated as the unrestricted primary writer in the first slice.
+- Every agent task has one explicit execution mode and identity.
+- Shared-mode writes begin from a recoverable checkpoint and remain attributable at the strongest observable runtime level.
+- An overlap or collision is never silently represented as a clean agent result.
+- Isolated and read-only guarantees are enforced by runtime boundaries, not prompts alone.
+- Browser identities never enter project Git or ordinary Land output and are never shared merely because agents share files.
+- A newly launched mobile task never qualifies as ready until its actual workspace binding is verified.
 - Clean reconciliation never deletes the retained session checkpoint chain or merge history.
+- A resumed Land operation reuses the exact already durable final checkpoint rather than recapturing cloud state.

@@ -44,6 +44,12 @@ class LandError(RuntimeError):
     pass
 
 
+class _ConcurrentLocalChange(LandError):
+    def __init__(self, path: str) -> None:
+        self.path = path
+        super().__init__(f"local path changed during Land: {path}")
+
+
 def now_iso() -> str:
     return datetime.now(UTC).replace(microsecond=0).isoformat()
 
@@ -1163,6 +1169,7 @@ def _preserve_original(
     name: str,
     current: dict[str, Any],
     moved_path: Path,
+    relative: PurePosixPath,
 ) -> None:
     _private_directory(moved_path.parent, "private Land recovery directory")
     moved_descriptor = os.open(
@@ -1172,23 +1179,30 @@ def _preserve_original(
         | getattr(os, "O_NOFOLLOW", 0),
     )
     try:
-        if current["type"] == "file":
-            os.link(
+        if current["type"] not in {"file", "symlink"}:
+            raise LandError("Land can preserve only regular files and symbolic links")
+        if _entry_at(moved_descriptor, moved_path.name) is not None:
+            raise LandError(f"Land recovery destination already exists: {moved_path}")
+        try:
+            os.rename(
                 name,
                 moved_path.name,
                 src_dir_fd=parent_descriptor,
                 dst_dir_fd=moved_descriptor,
-                follow_symlinks=False,
             )
-        elif current["type"] == "symlink":
-            os.symlink(current["target"], moved_path.name, dir_fd=moved_descriptor)
-        else:
-            raise LandError("Land can preserve only regular files and symbolic links")
+        except FileNotFoundError as exc:
+            raise _ConcurrentLocalChange(str(relative)) from exc
+        except OSError as exc:
+            raise LandError(f"could not atomically preserve local path: {relative}") from exc
         os.fsync(moved_descriptor)
-        os.unlink(name, dir_fd=parent_descriptor)
         os.fsync(parent_descriptor)
-    except FileExistsError as exc:
-        raise LandError(f"Land recovery destination already exists: {moved_path}") from exc
+        try:
+            preserved = _entry_at(moved_descriptor, moved_path.name)
+            visible = _entry_at(parent_descriptor, name)
+        except LandError as exc:
+            raise _ConcurrentLocalChange(str(relative)) from exc
+        if not _matches_entry(preserved, current) or visible is not None:
+            raise _ConcurrentLocalChange(str(relative))
     finally:
         os.close(moved_descriptor)
 
@@ -1212,7 +1226,7 @@ def _install_after(
         try:
             os.symlink(target, name, dir_fd=parent_descriptor)
         except FileExistsError as exc:
-            raise LandError(f"local path appeared during Land: {relative}") from exc
+            raise _ConcurrentLocalChange(str(relative)) from exc
         os.fsync(parent_descriptor)
         return
     if after["type"] != "file":
@@ -1251,7 +1265,7 @@ def _install_after(
             follow_symlinks=False,
         )
     except FileExistsError as exc:
-        raise LandError(f"local path appeared during Land: {relative}") from exc
+        raise _ConcurrentLocalChange(str(relative)) from exc
     os.fsync(parent_descriptor)
     os.unlink(temporary_name, dir_fd=parent_descriptor)
     os.fsync(parent_descriptor)
@@ -1295,8 +1309,13 @@ def _apply_one(
                     if after is None and current is None:
                         return
                     if _matches_entry(current, before):
-                        os.unlink(name, dir_fd=parent_descriptor)
-                        os.fsync(parent_descriptor)
+                        _preserve_original(
+                            parent_descriptor=parent_descriptor,
+                            name=name,
+                            current=current,
+                            moved_path=Path(operation["abandonedPath"]),
+                            relative=relative,
+                        )
                         current = None
                     if current is not None:
                         raise LandError(f"local path changed during Land: {relative}")
@@ -1310,6 +1329,7 @@ def _apply_one(
                         name=name,
                         current=current,
                         moved_path=moved_path,
+                        relative=relative,
                     )
             if after is not None:
                 if stage_path is None:
@@ -1563,9 +1583,7 @@ def _validate_partial_state(
                 and (temporary is None or _matches_entry(temporary, after))
             )
         if not valid:
-            raise LandError(
-                f"cannot prove interrupted Land state for {operation['path']}"
-            )
+            raise _ConcurrentLocalChange(operation["path"])
 
 
 def _restore_from_moved(
@@ -1603,12 +1621,77 @@ def _restore_from_moved(
         os.close(moved_descriptor)
 
 
+def _recover_concurrent_operation(
+    *,
+    parent_descriptor: int,
+    name: str,
+    relative: PurePosixPath,
+    operation: dict[str, Any],
+    current: dict[str, Any] | None,
+    moved: dict[str, Any] | None,
+    temporary: dict[str, Any] | None,
+) -> None:
+    """Keep racing user bytes visible when possible and recoverable otherwise."""
+
+    after = operation["after"]
+    abandoned_path = Path(operation["abandonedPath"])
+    if temporary is not None and _matches_entry(temporary, after):
+        if _entry_at_path(abandoned_path) is None:
+            try:
+                _preserve_original(
+                    parent_descriptor=parent_descriptor,
+                    name=operation["temporaryName"],
+                    current=temporary,
+                    moved_path=abandoned_path,
+                    relative=relative,
+                )
+            except LandError:
+                # A second race remains in the workspace or in private recovery.
+                pass
+
+    before = operation["before"]
+    if moved is None or _matches_entry(moved, before):
+        return
+    if moved.get("type") not in {"file", "symlink"}:
+        return
+
+    if _matches_entry(current, after):
+        if _entry_at_path(abandoned_path) is not None:
+            return
+        try:
+            _preserve_original(
+                parent_descriptor=parent_descriptor,
+                name=name,
+                current=current,
+                moved_path=abandoned_path,
+                relative=relative,
+            )
+        except LandError:
+            # Never overwrite a second racing value; both copies remain recoverable.
+            return
+        current = None
+    if current is not None:
+        return
+    try:
+        _restore_from_moved(
+            parent_descriptor=parent_descriptor,
+            name=name,
+            before=moved,
+            moved_path=Path(operation["movedPath"]),
+        )
+    except LandError:
+        # A recreated workspace name wins; the raced bytes remain in recovery.
+        pass
+
+
 def _rollback_to_local(
     *,
     workspace: Path,
     canonical: list[dict[str, Any]],
     journal: dict[str, Any] | None,
+    preserve_paths: set[str] | None = None,
 ) -> None:
+    preserve_paths = preserve_paths or set()
     root_descriptor = os.open(
         workspace,
         os.O_RDONLY
@@ -1643,6 +1726,17 @@ def _rollback_to_local(
                                 in {"PENDING", "INTENT", "APPLIED"}
                             ):
                                 state = persisted["state"]
+                    if operation["path"] in preserve_paths:
+                        _recover_concurrent_operation(
+                            parent_descriptor=parent_descriptor,
+                            name=name,
+                            relative=relative,
+                            operation=operation,
+                            current=current,
+                            moved=moved,
+                            temporary=temporary,
+                        )
+                        continue
                     if temporary is not None:
                         if state not in {"INTENT", "APPLIED"} or temporary.get(
                             "type"
@@ -1658,6 +1752,7 @@ def _rollback_to_local(
                                 name=temporary_name,
                                 current=temporary,
                                 moved_path=abandoned_path,
+                                relative=relative,
                             )
                         elif _matches_entry(abandoned, temporary):
                             os.unlink(temporary_name, dir_fd=parent_descriptor)
@@ -1725,6 +1820,17 @@ def _rollback_to_local(
         journal["rolledBackAt"] = now_iso()
 
 
+def _validate_preserved_originals(journal: dict[str, Any]) -> None:
+    for operation in journal["operations"]:
+        before = operation["before"]
+        moved = _entry_at_path(Path(operation["movedPath"]))
+        if before is None:
+            if moved is not None:
+                raise _ConcurrentLocalChange(operation["path"])
+        elif not _matches_entry(moved, before):
+            raise _ConcurrentLocalChange(operation["path"])
+
+
 def _apply_journal(
     *,
     workspace: Path,
@@ -1752,6 +1858,17 @@ def _apply_journal(
     try:
         try:
             _validate_partial_state(root_descriptor=root_descriptor, journal=journal)
+        except _ConcurrentLocalChange as exc:
+            os.close(root_descriptor)
+            root_descriptor = -1
+            _rollback_to_local(
+                workspace=workspace,
+                canonical=canonical,
+                journal=journal,
+                preserve_paths={exc.path},
+            )
+            _atomic_json(journal_path, journal)
+            raise
         except LandError:
             os.close(root_descriptor)
             root_descriptor = -1
@@ -1797,6 +1914,17 @@ def _apply_journal(
                     ),
                     moved_path=Path(operation["movedPath"]),
                 )
+            except _ConcurrentLocalChange as exc:
+                os.close(root_descriptor)
+                root_descriptor = -1
+                _rollback_to_local(
+                    workspace=workspace,
+                    canonical=canonical,
+                    journal=journal,
+                    preserve_paths={exc.path},
+                )
+                _atomic_json(journal_path, journal)
+                raise
             except LandError:
                 os.close(root_descriptor)
                 root_descriptor = -1
@@ -1828,6 +1956,17 @@ def _apply_journal(
         _rollback_to_local(workspace=workspace, canonical=canonical, journal=journal)
         _atomic_json(journal_path, journal)
         raise LandError("Land changed the user's branch, refs, or real index")
+    try:
+        _validate_preserved_originals(journal)
+    except _ConcurrentLocalChange as exc:
+        _rollback_to_local(
+            workspace=workspace,
+            canonical=canonical,
+            journal=journal,
+            preserve_paths={exc.path},
+        )
+        _atomic_json(journal_path, journal)
+        raise
     journal["phase"] = "VERIFIED"
     journal.setdefault("verifiedAt", now_iso())
     _atomic_json(journal_path, journal)
@@ -2325,3 +2464,108 @@ def land_fixture(
             operation_root=operation_root,
             fail_after_apply=fail_after_apply,
         )
+
+
+def validate_conflicted_land_fixture(
+    *,
+    workspace: Path,
+    ledger: Path,
+    run_id: str,
+    workspace_id: str,
+    baseline_ref: str,
+    baseline_commit: str,
+    cloud_ref: str,
+    cloud_commit: str,
+    approved_ignored: Iterable[str],
+    operation_root: Path,
+) -> dict[str, Any]:
+    """Revalidate an existing review hold without reconstructing missing state."""
+
+    prefix = _validate_identity(run_id, workspace_id)
+    workspace = _physical_directory(workspace, "local fixture workspace")
+    ledger = _physical_directory(ledger, "Lift-private ledger")
+    approved = tuple(approved_ignored)
+    validate_fixture_policy(workspace, approved)
+
+    operation_root = operation_root.absolute()
+    if (
+        operation_root == workspace
+        or workspace in operation_root.parents
+        or operation_root in workspace.parents
+        or operation_root == ledger
+        or ledger in operation_root.parents
+        or operation_root in ledger.parents
+    ):
+        raise LandError(
+            "Land operation state cannot contain the workspace or private ledger"
+        )
+    operation_root = _private_directory(
+        operation_root, "existing conflict operation directory"
+    )
+    if operation_root.stat().st_dev != workspace.stat().st_dev:
+        raise LandError("Land operation state must share the workspace filesystem")
+
+    expected_identity = {
+        "schemaVersion": 1,
+        "workspace": str(workspace),
+        "ledger": str(ledger),
+        "sessionPrefix": prefix,
+    }
+    if _read_json(operation_root / IDENTITY_NAME) != expected_identity:
+        raise LandError("Land operation directory belongs to another operation")
+    result = _read_json(operation_root / RESULT_NAME)
+    if result.get("outcome") != "NEEDS_REVIEW":
+        raise LandError("cached Land operation is not a conflict result")
+    merge = _read_json(operation_root / MERGE_NAME)
+    if merge.get("outcome") != "NEEDS_REVIEW":
+        raise LandError("cached Land merge is not a conflict result")
+    for forbidden_name in (JOURNAL_NAME, RECEIPT_NAME):
+        forbidden = operation_root / forbidden_name
+        if forbidden.exists() or forbidden.is_symlink():
+            raise LandError("conflicted Land operation contains apply-only state")
+
+    lock_path = operation_root / LOCK_NAME
+    directory = os.open(
+        operation_root,
+        os.O_RDONLY
+        | getattr(os, "O_DIRECTORY", 0)
+        | getattr(os, "O_NOFOLLOW", 0),
+    )
+    try:
+        try:
+            descriptor = os.open(
+                lock_path.name,
+                os.O_RDWR | getattr(os, "O_NOFOLLOW", 0),
+                dir_fd=directory,
+            )
+        except OSError as exc:
+            raise LandError("cached Land operation lost its lifecycle lock") from exc
+        try:
+            _secure_regular_info(
+                descriptor, description="cached Land operation lock", max_size=0
+            )
+        finally:
+            os.close(descriptor)
+    finally:
+        os.close(directory)
+
+    cloud_final_ref = f"{prefix}/cloud-final"
+    if _resolve_commit(ledger, cloud_final_ref) != cloud_commit:
+        raise LandError("cached Land cloud-final ref differs")
+
+    with _operation_lock(operation_root):
+        verified = _land_fixture_locked(
+            workspace=workspace,
+            ledger=ledger,
+            run_id=run_id,
+            workspace_id=workspace_id,
+            baseline_ref=baseline_ref,
+            baseline_commit=baseline_commit,
+            cloud_ref=cloud_ref,
+            cloud_commit=cloud_commit,
+            approved_ignored=approved,
+            operation_root=operation_root,
+        )
+    if verified.get("outcome") != "NEEDS_REVIEW":
+        raise LandError("cached Land operation is no longer a conflict result")
+    return verified
