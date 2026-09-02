@@ -2,8 +2,8 @@
 
 Last verified: 2026-09-02
 
-Phase 0 implementation/evidence baseline: merge commit `b61bb9b42e3a36809d7947c1055e524da55954b5`
-Product phase: Phase 0 provider-path feasibility passed once; the complete round trip is not yet complete
+Live Phase 0 evidence baseline: merge commit `b61bb9b42e3a36809d7947c1055e524da55954b5`
+Product phase: provider-path feasibility passed once; the fixture-only local Land core passes; the complete live round trip is not yet complete
 
 This is the canonical short-to-medium-term memory for Lift. It answers four questions: what exists, what was actually observed, what was learned, and what should be built next. Detailed protocol evidence remains in [`spikes/2026-08-31-codex-headless-remote.md`](spikes/2026-08-31-codex-headless-remote.md).
 
@@ -12,10 +12,10 @@ This is the canonical short-to-medium-term memory for Lift. It answers four ques
 - Lift is infrastructure for existing coding agents, not a coding agent, phone chat, IDE, or GitHub replacement.
 - The first wedge is one active Mac coding workspace moved to one persistent Linux cloud workspace, controlled from the provider application the user already has.
 - The Codex-first provider path has passed once on a real Ubuntu EC2 instance with encrypted EBS: direct phone control, strongly corroborated laptop-off work, EC2 stop/start recovery, exact post-restart folder binding, a guarded approval/proof turn, an immutable following checkpoint, exact-version S3 restore, and a fresh `safeToClose: true` evaluation.
-- The spike code and evidence were merged through [PR #3](https://github.com/natecl/lift/pull/3). Local verification at the merged revision has 125 passing unit tests plus passing Ruff, Python compilation, CloudFormation validation, whitespace, and secret/account-identifier scans. GitHub had no hosted status checks configured for that PR.
+- The live spike code and evidence were merged through [PR #3](https://github.com/natecl/lift/pull/3), and the consolidated product context was merged through [PR #4](https://github.com/natecl/lift/pull/4). The current combined local tree has 148 passing unit tests plus passing Ruff, Python compilation, and whitespace checks. GitHub had no hosted status checks configured for the earlier PRs.
 - The validated capture path is deliberately restricted to a generated disposable fixture. It is not yet safe or usable for arbitrary real user workspaces because the production manifest-review flow does not exist.
 - There is no product dashboard or signed desktop helper yet. Authentication, pairing, and proof still required founder-operated terminal steps.
-- `Land Workspace` is designed but not implemented end to end. Clean return, local divergence, same-file conflict, crash-safe application, and durable local acknowledgement remain the highest-value missing product slice.
+- The fixture-only local Land core is implemented and tested: private returning-local capture, conservative `B/L/C` reconciliation, isolated merge, clean transactional application, interruption recovery, deliberate conflict preservation, and a Git-backed receipt. Complete Land is still missing live cloud writer freeze, restore-tested final-cloud import, offline-helper continuation, durable cloud acknowledgement, and ownership-lease return.
 - Codex direct Remote remains experimental and founder-only. One passing run is evidence of feasibility, not provider support, repeatability, external-alpha safety, or market demand.
 
 ## What is now implemented
@@ -97,6 +97,20 @@ The founder run retains three immutable Lift-private checkpoints:
 
 Checkpoint history is additive. A later safe merge must never erase the baseline, cloud checkpoint chain, final cloud state, returning-local state, merge result, or Land receipt. Lift-private Git history remains outside the user's repository history unless the user explicitly authorizes a separate sanitized publication.
 
+### Fixture-only local Land core
+
+The current state engine now proves the local reconciliation boundary without touching live AWS resources or a real user repository:
+
+- the fixture's approved ignored path and hard exclusion are pinned to the immutable Lift Off baseline rather than mutable `.gitignore` state;
+- cloud checkpoints and returning-local capture preserve real tracked ignored files while hard-removing the baseline-declared exclusion;
+- returning local state becomes immutable private commit `L` without moving the user's branch, any Git ref, the real index, or working-tree state during capture; its original `HEAD`, refs, reflog commits, and reachable objects are also imported and pinned under immutable session refs;
+- `B -> L` and `B -> C` are compared conservatively, with same-path divergence, type changes, file/directory topology, and case or Unicode collisions routed to `NEEDS_REVIEW` before the original folder is changed;
+- clean results are merged in a Lift-private worktree and applied through a durable, canonical journal that preserves originals, rejects tampered authority, resumes a proven interruption, or rolls back to `L` without overwriting unexpected user work;
+- the baseline, cloud and returning-local Git histories, final cloud state, local return, merge result, proposed conflict result when available, and acknowledgement receipt remain under immutable Lift-private refs;
+- the receipt payload itself is retained and revalidated from private Git, not only from a local JSON sidecar.
+
+This is a local fixture test boundary, not a working `Land Workspace` product flow. It currently receives an already available final-cloud commit in the local private ledger; it does not yet freeze the real EC2 workspace, upload and restore-test `C`, import that exact object version, or return the distributed ownership lease.
+
 ## What the founder run actually proves
 
 | Area | Observed evidence | Honest conclusion |
@@ -144,7 +158,7 @@ Any missing, stale, malformed, or contradictory fact blocks the promise.
 - Physical proof paths are walked without following symbolic links and must be regular, correctly owned, and size bounded.
 - The capture harness refuses any workspace without the exact generated disposable-fixture marker before creating a ledger. Its one ignored-file inclusion must match the marker-declared path exactly.
 - The approval observer runs as a hardened root-owned transient service from checksum-verified root-owned files, uses only the local Unix socket, and cannot answer provider requests.
-- Provider connector state stays outside the project and current ordinary checkpoints. The future Land implementation must preserve that exclusion.
+- Provider connector state stays outside the project and current ordinary checkpoints. The complete live Land lifecycle must preserve that exclusion.
 
 ### Still blocking external alpha
 
@@ -168,7 +182,9 @@ Implemented:
 - direct provider-native phone proof;
 - stop/start recovery;
 - immutable cloud checkpoint and exact restore;
-- fail-closed safe-to-close evidence.
+- fail-closed safe-to-close evidence;
+- baseline-pinned fixture inclusion and exclusion policy across Lift Off and checkpoints;
+- fixture-only local `B/L/C` reconciliation, isolated merge, transactional clean apply, safe rollback, structured conflict preservation, immutable local session refs, and a Git-backed receipt.
 
 Not implemented:
 
@@ -178,40 +194,46 @@ Not implemented:
 - arbitrary real-workspace discovery and reviewable transfer manifest;
 - secrets broker and separate provider-service identity;
 - normal product error recovery and revocation controls;
-- final cloud freeze and Land checkpoint;
-- local baseline comparison, private three-way merge, transactional application, acknowledgement, and conflict UI;
+- live final cloud freeze, final Land checkpoint upload/restore test, and exact import into the local ledger;
+- offline-helper continuation, durable cloud acknowledgement, ownership-lease return, and conflict UI;
 - design-partner onboarding, billing, analytics, or production operations.
 
-## Next highest-value slice: Land
+## Next highest-value slice: connect Land to the live lifecycle
 
-The next build should complete the missing half of the promise on the disposable fixture before adding dashboard polish or a second provider.
+The next build should turn the tested local reconciliation core into one real, resumable `Bring changes back` operation on the disposable EC2 fixture before adding dashboard polish or a second provider.
 
 ### Thin vertical scope
 
-1. Refuse new cloud writers and move the ownership lease from `CLOUD_PRIMARY` to `LANDING`.
-2. Gracefully stop the provider and any declared workspace-writing processes.
-3. Perform a complete final cloud scan and create immutable checkpoint `C`.
-4. Persist and restore-test `C` independently of running compute.
-5. Capture the unchanged or intentionally diverged local fixture as private synthetic commit `L` without touching its branch, refs, index, or working tree.
-6. Compare `B -> L` and `B -> C` and merge in an isolated Lift-private worktree.
-7. For an unchanged or nonoverlapping local workspace, stage and transactionally apply the verified result with a durable recovery journal and pre-apply copy.
-8. For same-path, delete/modify, type, symlink, binary, or case conflicts, leave the original local workspace untouched and preserve local, cloud, and proposed merge results.
-9. Verify the final local manifest before acknowledgement.
-10. Write an immutable Land receipt, return the ownership lease to `LOCAL_PRIMARY`, and retain the complete session ledger even for a clean merge.
-11. Make retries idempotent across interruption before freeze, after final checkpoint, during download, during local apply, and after acknowledgement.
+1. Add a durable guest-side Land operation and move the ownership lease from `CLOUD_PRIMARY` to `LANDING`; the provider-neutral runner must refuse new starts while Land is active.
+2. Gracefully stop the provider and every declared workspace-writing process, then enforce and verify that the fixture is frozen before capture.
+3. Create one immutable `land-final` checkpoint `C`, upload its bundle and manifest as exact versioned objects, restore-test them, and reuse that same `C` on every retry.
+4. If the helper is offline, expose `Waiting for this Mac` while keeping `C` durable and cloud writers stopped; continue automatically when it reconnects.
+5. Download the exact object versions into quarantine, verify their hashes, manifest, Git graph, fixture policy, and restore evidence, then import only validated objects and refs into the local private ledger.
+6. Invoke the implemented local reconciliation core to capture `L`, produce or preserve `M`, and apply or return `NEEDS_REVIEW`.
+7. After local verification, durably acknowledge the exact `C`, write the final receipt, return the lease to `LOCAL_PRIMARY`, and optionally stop compute.
+8. Make the complete distributed operation idempotent across interruption before freeze, after `C`, during download, during local apply, and after acknowledgement.
 
-### First acceptance tests
+### Local acceptance tests now passing
 
 - unchanged local fixture receives the exact cloud delta;
 - local and cloud edits to different files combine correctly;
 - same-file edits preserve both versions and do not alter the original folder;
 - delete-versus-modify and file-versus-directory changes become explicit conflicts;
 - a crash during local application deterministically completes or restores;
-- a Land requested while the laptop/helper is offline completes after reconnect;
 - no path escapes, symlink traversal, case collision, or ignored-file expansion occurs;
 - all baseline, checkpoint, merge, conflict, and receipt objects remain restorable after clean completion.
 
-Once fixture Land passes, replace the marker-only capture boundary with the smallest explicit real-workspace manifest-review flow and repeat the entire local -> cloud -> phone -> local loop on a noncritical real repository.
+Additional passing coverage includes tampered-journal rejection, replacement interruption and resume, rollback without clobbering a racing local file, file/symlink and file/directory review, case-colliding directory prefixes, `.git`-targeting symlink rejection, hard exclusion after `.gitignore` mutation, force-added tracked ignored files, deterministic receipt recovery, and idempotence after later local edits.
+
+### Live acceptance tests still pending
+
+- the real cloud writer freeze is enforced before the one final `C`;
+- exact versioned `C` is uploaded, restored, imported, and matched locally;
+- a Land requested while the laptop/helper is offline completes after reconnect;
+- local acknowledgement returns the real ownership lease exactly once;
+- the complete EC2 -> Mac round trip passes clean and deliberate-conflict runs without founder terminal intervention.
+
+Once the complete live fixture Land loop passes, replace the marker-only capture boundary with the smallest explicit real-workspace manifest-review flow and repeat the entire local -> cloud -> phone -> local loop on a noncritical real repository.
 
 ## Product and architecture truths to preserve
 
@@ -245,6 +267,7 @@ The founder harness is intentionally bound to one explicit non-root Lift AWS ide
 ## Evidence and code map
 
 - [Merged Phase 0 PR](https://github.com/natecl/lift/pull/3)
+- [Merged current-state documentation PR](https://github.com/natecl/lift/pull/4)
 - [`VALIDATION.md`](VALIDATION.md): hypothesis status and exact evidence interpretation
 - [`spikes/2026-08-31-codex-headless-remote.md`](spikes/2026-08-31-codex-headless-remote.md): full experiment narrative and protocol details
 - [`EXPERIENCE.md`](EXPERIENCE.md): product-safe-to-close and Land contracts
@@ -253,6 +276,7 @@ The founder harness is intentionally bound to one explicit non-root Lift AWS ide
 - [`ROADMAP.md`](ROADMAP.md): phase gates and immediate sequencing
 - [`../spikes/ec2-laptop-off/spike.py`](../spikes/ec2-laptop-off/spike.py): local orchestrator and evidence controller
 - [`../spikes/ec2-laptop-off/workspace.py`](../spikes/ec2-laptop-off/workspace.py): fixture capture boundary
+- [`../spikes/ec2-laptop-off/land.py`](../spikes/ec2-laptop-off/land.py): fixture-only local reconciliation and transactional apply core
 - [`../spikes/ec2-laptop-off/guest/runner.py`](../spikes/ec2-laptop-off/guest/runner.py): provider-blind supervisor
 - [`../spikes/ec2-laptop-off/guest/codex_project.py`](../spikes/ec2-laptop-off/guest/codex_project.py): experimental recipe-scoped provider preparation/readiness
 - [`../spikes/ec2-laptop-off/guest/approval_observer.py`](../spikes/ec2-laptop-off/guest/approval_observer.py): passive live request/turn observer

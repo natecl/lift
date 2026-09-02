@@ -39,7 +39,7 @@ Remove the two technical unknowns capable of invalidating the first promise.
 
 ### Current evidence
 
-The founder EC2 spike now passes the provider-path portion once: direct phone control, strongly corroborated laptop-off execution, EC2 stop/start recovery, exact post-restart folder binding, guarded native approval observation, versioned checkpointing, exact S3 restore, and a fresh `safeToClose: true` evaluation. Phase 0 is still open because its generated-fixture capture/return work has not yet produced the required clean and deliberate-conflict merge evidence without touching the user's Git state. The zero-terminal product journey, provider-service identity isolation, network recovery, revocation, provider-policy review, and repetition remain separate Phase 1, pre-alpha, or compatibility-promotion gates.
+The founder EC2 spike now passes the provider-path portion once: direct phone control, strongly corroborated laptop-off execution, EC2 stop/start recovery, exact post-restart folder binding, guarded native approval observation, versioned checkpointing, exact S3 restore, and a fresh `safeToClose: true` evaluation. The generated-fixture local return engine now also passes clean, disjoint, deliberate-conflict, interruption, rollback, exclusion, and Git-state-preservation tests. Phase 0 remains open because those mechanics are not yet wired to an enforced live cloud freeze, one restore-tested final `C`, exact local import, durable acknowledgement, and ownership-lease return. The zero-terminal product journey, provider-service identity isolation, network recovery, revocation, provider-policy review, and repetition remain separate Phase 1, pre-alpha, or compatibility-promotion gates.
 
 | Phase 0 gate | Current state |
 | --- | --- |
@@ -49,7 +49,7 @@ The founder EC2 spike now passes the provider-path portion once: direct phone co
 | Post-restart exact folder and runtime binding | Passed once with `projectId: null`; controller project visibility remains unknown |
 | Guarded approval/proof turn | Passed once; selected decision and responder identity remain unavailable |
 | Immutable checkpoint and exact restore | Three checkpoints passed exact-version restore |
-| Phase 0 private capture and return merge | Capture is fixture-marker-only; clean and conflict return are not implemented |
+| Phase 0 private capture and return merge | Fixture-only local `B/L/C` merge, transactional apply/rollback, conflict preservation, and receipt pass locally; live lifecycle wiring remains |
 | Real-workspace capture and complete product Land | Phase 1 target; not implemented |
 | No-terminal customer journey | Phase 1 target; not implemented |
 | Provider-service and credential isolation | Pre-alpha blocker; not implemented |
@@ -57,18 +57,18 @@ The founder EC2 spike now passes the provider-path portion once: direct phone co
 
 ### Immediate next slice
 
-Implement Land on the disposable fixture in this order:
+Connect the implemented local Land core to the disposable live fixture in this order:
 
 1. freeze cloud writers and enter `LANDING`;
 2. create and restore-test the final immutable cloud checkpoint `C`;
-3. capture returning local state `L` against baseline `B` without touching the user's Git state;
-4. merge `C` into `L` in an isolated Lift-private worktree;
-5. transactionally apply a verified clean result or preserve local, cloud, and proposed merge states for every conflict;
-6. verify the final local manifest, record local acknowledgement, and return the lease to `LOCAL_PRIMARY`;
+3. restore and quarantine exact `C`, then import its verified objects into the existing local private ledger;
+4. invoke the tested local core to capture `L`, reconcile `B/L/C`, and either apply transactionally or preserve every side for review;
+5. if the helper is offline, keep the durable operation pending and continue automatically after reconnect;
+6. verify the final local manifest, durably acknowledge exact `C`, and return the lease to `LOCAL_PRIMARY`;
 7. retain baseline, checkpoint chain, final cloud state, local return, merge result, and receipt even after a clean merge;
 8. optionally stop compute only after the final cloud state is independently durable.
 
-The first two acceptance cases are an unchanged-local clean return and a deliberate same-file conflict that leaves the original local folder untouched.
+The local acceptance cases now pass. The next acceptance gate is the same clean and deliberate-conflict pair through the real EC2/EBS/S3 lifecycle, including an offline-helper pause and retry without founder terminal intervention.
 
 ### Evidence recorded on 2026-09-01
 

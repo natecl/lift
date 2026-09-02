@@ -16,7 +16,7 @@ Lift is the infrastructure layer beneath Codex, Claude Code, and other CLI agent
 
 ### Current implementation state
 
-The merged Phase 0 code proves the experimental Codex provider path once on a generated disposable workspace: real EC2/EBS, direct provider-native phone control, one stop/start recovery, guarded approval/proof evidence, three immutable restore-tested checkpoints, and a short-lived `safeToClose: true` verdict. It does **not** yet implement the customer product, arbitrary real-workspace capture, a reviewable manifest, the dashboard/helper, or complete Land. The next implementation slice is clean and conflicted Land on the disposable fixture. See [`docs/CURRENT_STATE.md`](docs/CURRENT_STATE.md).
+The merged Phase 0 code proves the experimental Codex provider path once on a generated disposable workspace: real EC2/EBS, direct provider-native phone control, one stop/start recovery, guarded approval/proof evidence, three immutable restore-tested checkpoints, and a short-lived `safeToClose: true` verdict. The repository now also implements and tests the fixture-only local Land core: pinned transfer policy, private `L` capture, conservative `B/L/C` reconciliation, isolated merge, crash-resumable clean application with safe rollback, structured conflict preservation, and a Git-backed receipt. It does **not** yet implement the customer product, arbitrary real-workspace capture, a reviewable manifest, the dashboard/helper, or the live cloud freeze/import/acknowledgement half of complete Land. The next implementation slice wires this local engine into the real EC2/EBS/S3 lifecycle. See [`docs/CURRENT_STATE.md`](docs/CURRENT_STATE.md).
 
 ## 2. Problem
 

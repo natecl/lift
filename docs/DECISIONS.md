@@ -188,6 +188,12 @@ Decision: The current capture harness must refuse any workspace that lacks the e
 
 Reason: Discovery is not permission to transfer. The spike's fixed fixture proves mechanics without creating a path that could silently upload secrets, arbitrary ignored files, or a user's real workspace before the product has a reviewable transfer boundary.
 
+### D-031: Land is one product action backed by a resumable transaction
+
+Decision: Present Land as one user action—`Bring changes back`—with three meaningful user states: returning safely, waiting for the original computer, or needs review with nothing overwritten. Internally, implement it as explicit durable phases for cloud freeze, final checkpoint, exact import, local capture, reconciliation, transactional apply, acknowledgement, and lease return. Decompose and test those phases independently, but do not expose infrastructure steps or require the user to orchestrate them.
+
+Reason: Small independently recoverable transitions make data safety and retries tractable, while exposing those transitions as setup work would destroy the product's core promise. Engineering decomposition is a reasoning and reliability technique, not a constraint on the optimal architecture or a burden shifted to the user.
+
 ## Pending decisions
 
 ### P-001: Hosted versus BYO cloud first

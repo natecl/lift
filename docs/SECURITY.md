@@ -6,9 +6,9 @@ Lift will execute powerful autonomous tools against source code and credentials 
 
 ## Current security posture
 
-The merged Phase 0 harness has strong founder-fixture controls: exact live AWS/resource identity binding, private no-follow local state, a marker-gated disposable capture, narrow physical workspace paths, a provider-blind unprivileged runner, root-owned passive approval observation, challenge-bound evidence, immutable checkpoint objects, and exact restore tests. These controls passed the 125-test local suite and one live founder phone run.
+The Phase 0 harness has strong founder-fixture controls: exact live AWS/resource identity binding, private no-follow local state, a baseline-pinned disposable capture policy, narrow physical workspace paths, a provider-blind unprivileged runner, root-owned passive approval observation, challenge-bound evidence, immutable checkpoint objects, exact restore tests, Git invocations isolated from ambient configuration and repo-local hooks, and a fixture-only local Land engine with canonical journal authority, preserved originals, rollback, conservative conflict handling, pinned returning-local history, and Git-backed receipts. These controls pass the 148-test local suite; the provider path has also passed one live founder phone run.
 
-It is not safe for external alpha use. The provider daemon and reusable credentials still share the `lift` Unix identity with the untrusted workspace workload; installer bytes are not signature/digest verified before root execution; the production transfer-manifest review does not exist; approval decision/responder attribution is unavailable; and network recovery, revoke, repetition, and complete Land remain untested. See [`CURRENT_STATE.md`](CURRENT_STATE.md) for the coherent current boundary.
+It is not safe for external alpha use. The provider daemon and reusable credentials still share the `lift` Unix identity with the untrusted workspace workload; installer bytes are not signature/digest verified before root execution; the production transfer-manifest review does not exist; approval decision/responder attribution is unavailable; and network recovery, revoke, repetition, and the distributed live Land lifecycle remain untested. See [`CURRENT_STATE.md`](CURRENT_STATE.md) for the coherent current boundary.
 
 ## Security objectives
 

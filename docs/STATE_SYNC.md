@@ -4,9 +4,9 @@ Last updated: 2026-09-02
 
 ## Current implementation status
 
-This document is the authoritative Land design, not a description of a finished implementation. The Phase 0 harness has proven an additive private checkpoint chain and exact restore for three cloud revisions on a generated disposable fixture. A historical local precursor also performed one clean fast-forward on a disposable repository. The complete `B/L/C` comparison, isolated return merge, journaled local application, ownership acknowledgement, offline completion, and deliberate conflict preservation are not implemented.
+This document remains the authoritative complete Land design. The Phase 0 harness has proven an additive private checkpoint chain and exact restore for three cloud revisions on a generated disposable fixture. The current local fixture engine now implements private `L` capture, conservative `B/L/C` comparison, isolated return merge, journaled clean application with rollback, deliberate conflict preservation, immutable session refs, and a Git-backed receipt. These local mechanics pass clean, disjoint, conflicted, interrupted, tampered-state, exclusion, topology, symlink, and case-collision tests without moving the user's Git state.
 
-Land is the next highest-value slice. It should first pass an unchanged-local clean return and a same-file conflict on the marker-gated disposable fixture before Lift captures any real user repository. See [`CURRENT_STATE.md`](CURRENT_STATE.md) for the ordered implementation plan and current evidence boundary.
+Complete Land is not implemented. The remaining highest-value slice is the distributed lifecycle around that engine: enforce the real cloud freeze, create and restore-test one exact final `C`, import it into the local ledger, wait for an offline helper, durably acknowledge local completion, and return the ownership lease. The whole flow must remain one user action. See [`CURRENT_STATE.md`](CURRENT_STATE.md) for the ordered implementation plan and current evidence boundary.
 
 ## Product contract
 
@@ -49,7 +49,7 @@ Every sync decision compares three snapshots:
 
 Each snapshot has both:
 
-- a signed content manifest used for transfer integrity, inclusion policy, recovery, and cross-platform validation;
+- a content manifest used for transfer integrity, inclusion policy, recovery, and cross-platform validation; the fixture format is hash-bound today and the production format must also be authenticated;
 - a commit in a Lift-private Git repository used for ancestry, diffing, and three-way merging.
 
 A manifest entry contains at least:

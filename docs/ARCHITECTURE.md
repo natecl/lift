@@ -6,7 +6,7 @@ This document defines the selected prototype direction. The first runtime is Ubu
 
 ## Current implementation cut line
 
-The merged Phase 0 Python harness implements the EC2/EBS/S3 runtime driver, generated-fixture reconstruction, provider-blind runner, experimental Codex recipe/connector, stop/start recovery, challenge-bound readiness evidence, and immutable restore-tested cloud checkpoints. It does not implement the desktop helper, dashboard, product control plane, secret broker, arbitrary real-workspace manifest, or complete Land. The next architectural slice is the `B/L/C` return and conflict path in [`STATE_SYNC.md`](STATE_SYNC.md). See [`CURRENT_STATE.md`](CURRENT_STATE.md) for the dated evidence boundary.
+The Phase 0 Python harness implements the EC2/EBS/S3 runtime driver, generated-fixture reconstruction, provider-blind runner, experimental Codex recipe/connector, stop/start recovery, challenge-bound readiness evidence, and immutable restore-tested cloud checkpoints. Its fixture-only state engine now also implements the local half of Land: baseline-pinned policy, private `L` capture, conservative `B/L/C` reconciliation, isolated merge, crash-resumable application or rollback, structured conflict preservation, and a Git-backed receipt. It does not implement the desktop helper, dashboard, product control plane, secret broker, arbitrary real-workspace manifest, or the live cloud freeze/final-checkpoint/import/acknowledgement path required for complete Land. The next architectural slice connects the proven local engine to that lifecycle as one resumable user operation. See [`STATE_SYNC.md`](STATE_SYNC.md) and [`CURRENT_STATE.md`](CURRENT_STATE.md).
 
 ## Architecture goals
 

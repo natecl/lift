@@ -27,6 +27,7 @@ SAFE_ID = re.compile(r"^[a-z0-9][a-z0-9-]{2,63}$")
 SAFE_LABEL = re.compile(r"^[a-z0-9][a-z0-9-]{0,47}$")
 SAFE_VOLUME_ID = re.compile(r"^vol-[0-9a-f]{8,17}$")
 ZERO_OID = "0" * 40
+FIXTURE_MARKER_PATH = ".lift-spike-fixture.json"
 
 
 class CheckpointError(RuntimeError):
@@ -44,9 +45,10 @@ def run(
     env: dict[str, str] | None = None,
     input_text: str | None = None,
     check: bool = True,
+    replace_env: bool = False,
 ) -> subprocess.CompletedProcess[str]:
-    environment = os.environ.copy()
-    if env:
+    environment = {} if replace_env else os.environ.copy()
+    if env is not None:
         environment.update(env)
     completed = subprocess.run(
         command,
@@ -64,7 +66,19 @@ def run(
 
 
 def run_bytes(command: list[str]) -> bytes:
-    completed = subprocess.run(command, capture_output=True)
+    environment = {
+        key: value for key, value in os.environ.items() if not key.startswith("GIT_")
+    }
+    environment.update(
+        {
+            "GIT_CONFIG_NOSYSTEM": "1",
+            "GIT_CONFIG_GLOBAL": os.devnull,
+            "GIT_OPTIONAL_LOCKS": "0",
+            "GIT_TERMINAL_PROMPT": "0",
+            "LC_ALL": "C",
+        }
+    )
+    completed = subprocess.run(command, env=environment, capture_output=True)
     if completed.returncode != 0:
         raise CheckpointError(
             f"command failed ({' '.join(command)}): "
@@ -83,23 +97,38 @@ def git(
     check: bool = True,
 ) -> subprocess.CompletedProcess[str]:
     environment = {
+        key: value for key, value in os.environ.items() if not key.startswith("GIT_")
+    }
+    environment.update({
         "GIT_CONFIG_NOSYSTEM": "1",
-        "GIT_CONFIG_GLOBAL": "/dev/null",
+        "GIT_CONFIG_GLOBAL": os.devnull,
+        "GIT_OPTIONAL_LOCKS": "0",
+        "GIT_TERMINAL_PROMPT": "0",
+        "LC_ALL": "C",
         "GIT_AUTHOR_NAME": "Lift",
         "GIT_AUTHOR_EMAIL": "spike@lift.invalid",
         "GIT_COMMITTER_NAME": "Lift",
         "GIT_COMMITTER_EMAIL": "spike@lift.invalid",
-    }
+    })
     if workspace is not None:
         environment["GIT_WORK_TREE"] = str(workspace)
     if index is not None:
         environment["GIT_INDEX_FILE"] = str(index)
     return run(
-        ["git", f"--git-dir={ledger}", *arguments],
+        [
+            "git",
+            "-c",
+            "core.fsmonitor=false",
+            "-c",
+            "core.hooksPath=/dev/null",
+            f"--git-dir={ledger}",
+            *arguments,
+        ],
         cwd=workspace,
         env=environment,
         input_text=input_text,
         check=check,
+        replace_env=True,
     )
 
 
@@ -109,6 +138,113 @@ def sha256_file(path: Path) -> str:
         for chunk in iter(lambda: handle.read(1024 * 1024), b""):
             digest.update(chunk)
     return digest.hexdigest()
+
+
+def nul_paths(value: str) -> list[str]:
+    return [path for path in value.split("\0") if path]
+
+
+def inside_workspace(relative: str) -> bool:
+    path = Path(relative)
+    return (
+        bool(relative)
+        and not path.is_absolute()
+        and ".." not in path.parts
+        and relative != ".git"
+        and not relative.startswith(".git/")
+    )
+
+
+def validate_marker_value(value: object) -> dict[str, Any]:
+    expected_keys = {
+        "approvedIgnoredPath",
+        "excludedSentinelPath",
+        "kind",
+        "schemaVersion",
+    }
+    approved = value.get("approvedIgnoredPath") if isinstance(value, dict) else None
+    excluded = value.get("excludedSentinelPath") if isinstance(value, dict) else None
+    if (
+        not isinstance(value, dict)
+        or set(value) != expected_keys
+        or value.get("schemaVersion") != 1
+        or value.get("kind") != "lift-disposable-fixture"
+        or not isinstance(approved, str)
+        or not inside_workspace(approved)
+        or not isinstance(excluded, str)
+        or not inside_workspace(excluded)
+        or approved == excluded
+    ):
+        raise CheckpointError("immutable baseline fixture marker is invalid")
+    return value
+
+
+def path_is_excluded(relative: str, excluded: str) -> bool:
+    return relative == excluded or relative.startswith(excluded.rstrip("/") + "/")
+
+
+def baseline_fixture_policy(ledger: Path, baseline_commit: str) -> dict[str, Any]:
+    try:
+        marker_bytes = run_bytes(
+            [
+                "git",
+                f"--git-dir={ledger}",
+                "cat-file",
+                "blob",
+                f"{baseline_commit}:{FIXTURE_MARKER_PATH}",
+            ]
+        )
+        marker = validate_marker_value(json.loads(marker_bytes.decode("utf-8")))
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise CheckpointError("immutable baseline fixture marker is invalid") from exc
+    policy = {
+        "schemaVersion": 1,
+        "markerPath": FIXTURE_MARKER_PATH,
+        "markerSha256": hashlib.sha256(marker_bytes).hexdigest(),
+        "approvedIgnoredPath": marker["approvedIgnoredPath"],
+        "excludedSentinelPath": marker["excludedSentinelPath"],
+    }
+    tree_paths = {
+        path.decode("utf-8")
+        for path in run_bytes(
+            [
+                "git",
+                f"--git-dir={ledger}",
+                "ls-tree",
+                "-r",
+                "-z",
+                "--name-only",
+                baseline_commit,
+            ]
+        ).split(b"\0")
+        if path
+    }
+    excluded = str(policy["excludedSentinelPath"])
+    if any(path_is_excluded(path, excluded) for path in tree_paths):
+        raise CheckpointError("hard-excluded fixture path entered the baseline")
+    return policy
+
+
+def verify_workspace_fixture_policy(
+    workspace: Path,
+    policy: dict[str, Any],
+) -> None:
+    marker_path = workspace / str(policy["markerPath"])
+    try:
+        info = marker_path.lstat()
+        marker_bytes = marker_path.read_bytes()
+        marker = validate_marker_value(json.loads(marker_bytes.decode("utf-8")))
+    except (FileNotFoundError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise CheckpointError("cloud fixture marker is invalid") from exc
+    if (
+        marker_path.is_symlink()
+        or not stat.S_ISREG(info.st_mode)
+        or info.st_size > 4096
+        or hashlib.sha256(marker_bytes).hexdigest() != policy["markerSha256"]
+        or marker["approvedIgnoredPath"] != policy["approvedIgnoredPath"]
+        or marker["excludedSentinelPath"] != policy["excludedSentinelPath"]
+    ):
+        raise CheckpointError("cloud fixture marker differs from the baseline policy")
 
 
 def read_json(path: Path) -> dict[str, Any]:
@@ -162,7 +298,16 @@ def workspace_git(
     ]
     if as_lift:
         command = ["runuser", "-u", "lift", "--", *command]
-    return run(command, cwd=workspace, check=check)
+    environment = {
+        key: value for key, value in os.environ.items() if not key.startswith("GIT_")
+    }
+    return run(
+        command,
+        cwd=workspace,
+        env=environment,
+        check=check,
+        replace_env=True,
+    )
 
 
 def workspace_fingerprint(workspace: Path, *, as_lift: bool) -> dict[str, Any]:
@@ -186,6 +331,107 @@ def workspace_fingerprint(workspace: Path, *, as_lift: bool) -> dict[str, Any]:
             as_lift=as_lift,
         ).stdout,
     }
+
+
+def workspace_content_entries(
+    workspace: Path,
+    *,
+    as_lift: bool,
+    policy: dict[str, Any],
+) -> list[dict[str, Any]]:
+    tracked = set(
+        nul_paths(
+            workspace_git(
+                workspace,
+                ["ls-files", "-z"],
+                as_lift=as_lift,
+            ).stdout
+        )
+    )
+    untracked = set(
+        nul_paths(
+            workspace_git(
+                workspace,
+                ["ls-files", "--others", "--exclude-standard", "-z"],
+                as_lift=as_lift,
+            ).stdout
+        )
+    )
+    included = tracked | untracked | {str(policy["approvedIgnoredPath"])}
+    excluded = str(policy["excludedSentinelPath"])
+    entries: list[dict[str, Any]] = []
+    for relative in sorted(included):
+        if path_is_excluded(relative, excluded):
+            continue
+        if not inside_workspace(relative):
+            raise CheckpointError(f"unsafe workspace path selected for checkpoint: {relative}")
+        absolute = workspace / relative
+        try:
+            info = absolute.lstat()
+        except FileNotFoundError:
+            continue
+        mode = stat.S_IMODE(info.st_mode)
+        if stat.S_ISREG(info.st_mode):
+            entry = {
+                "path": relative,
+                "type": "file",
+                "sha256": sha256_file(absolute),
+                "size": info.st_size,
+                "executable": bool(mode & stat.S_IXUSR),
+            }
+        elif stat.S_ISLNK(info.st_mode):
+            target = os.readlink(absolute)
+            encoded_target = target.encode("utf-8")
+            entry = {
+                "path": relative,
+                "type": "symlink",
+                "sha256": hashlib.sha256(encoded_target).hexdigest(),
+                "size": len(encoded_target),
+                "executable": False,
+                "target": target,
+            }
+        else:
+            raise CheckpointError(f"unsupported workspace entry: {relative}")
+        entries.append(entry)
+    return entries
+
+
+def manifest_content_entries(manifest: dict[str, Any]) -> list[dict[str, Any]]:
+    raw_entries = manifest.get("entries")
+    if not isinstance(raw_entries, list):
+        raise CheckpointError("checkpoint manifest has no entries")
+    entries: list[dict[str, Any]] = []
+    for raw in raw_entries:
+        if not isinstance(raw, dict):
+            raise CheckpointError("checkpoint manifest contains an invalid entry")
+        try:
+            entry = {
+                key: raw[key]
+                for key in ("path", "type", "sha256", "size", "executable")
+            }
+        except KeyError as exc:
+            raise CheckpointError("checkpoint manifest contains an invalid entry") from exc
+        if raw.get("type") == "symlink":
+            entry["target"] = raw.get("target")
+        entries.append(entry)
+    return sorted(entries, key=lambda entry: str(entry["path"]))
+
+
+def verify_workspace_tree_content(
+    workspace: Path,
+    *,
+    as_lift: bool,
+    policy: dict[str, Any],
+    manifest: dict[str, Any],
+) -> None:
+    if workspace_content_entries(
+        workspace,
+        as_lift=as_lift,
+        policy=policy,
+    ) != manifest_content_entries(manifest):
+        raise CheckpointError(
+            "checkpoint tree and independently scanned workspace content differ"
+        )
 
 
 def cloud_git_snapshot(workspace: Path, *, as_lift: bool) -> dict[str, Any]:
@@ -288,6 +534,7 @@ def tree_manifest(
     tree: str,
     parents: list[str],
     git_snapshot_sha256: str,
+    excluded_path: str,
 ) -> dict[str, Any]:
     raw = run_bytes(
         ["git", f"--git-dir={ledger}", "ls-tree", "-r", "-z", "--full-tree", tree]
@@ -302,8 +549,15 @@ def tree_manifest(
         mode_bytes, object_type_bytes, object_id_bytes = metadata.split(b" ", 2)
         path = path_bytes.decode("utf-8")
         relative = Path(path)
-        if relative.is_absolute() or ".." in relative.parts or path.startswith(".git/"):
+        if (
+            relative.is_absolute()
+            or ".." in relative.parts
+            or path == ".git"
+            or path.startswith(".git/")
+        ):
             raise CheckpointError(f"unsafe path in checkpoint tree: {path}")
+        if path_is_excluded(path, excluded_path):
+            raise CheckpointError("hard-excluded fixture path entered the checkpoint")
         mode = mode_bytes.decode("ascii")
         object_type = object_type_bytes.decode("ascii")
         object_id = object_id_bytes.decode("ascii")
@@ -312,17 +566,23 @@ def tree_manifest(
         content = run_bytes(
             ["git", f"--git-dir={ledger}", "cat-file", "blob", object_id]
         )
-        entries.append(
-            {
-                "path": path,
-                "type": "symlink" if mode == "120000" else "file",
-                "sha256": hashlib.sha256(content).hexdigest(),
-                "size": len(content),
-                "executable": mode == "100755",
-                "gitMode": mode,
-                "gitObjectId": object_id,
-            }
-        )
+        entry = {
+            "path": path,
+            "type": "symlink" if mode == "120000" else "file",
+            "sha256": hashlib.sha256(content).hexdigest(),
+            "size": len(content),
+            "executable": mode == "100755",
+            "gitMode": mode,
+            "gitObjectId": object_id,
+        }
+        if mode == "120000":
+            try:
+                entry["target"] = content.decode("utf-8")
+            except UnicodeDecodeError as exc:
+                raise CheckpointError(
+                    f"symbolic link target is not UTF-8: {path}"
+                ) from exc
+        entries.append(entry)
     payload: dict[str, Any] = {
         "schemaVersion": 1,
         "runId": run_id,
@@ -339,10 +599,75 @@ def tree_manifest(
     return payload
 
 
-def staged_tree(ledger: Path, workspace: Path, parent: str, index: Path) -> str:
+def staged_tree(
+    ledger: Path,
+    workspace: Path,
+    parent: str,
+    index: Path,
+    *,
+    as_lift: bool,
+    policy: dict[str, Any],
+) -> str:
     index.unlink(missing_ok=True)
-    git(ledger, ["read-tree", f"{parent}^{{tree}}"], workspace=workspace, index=index)
-    git(ledger, ["add", "-A", "--", "."], workspace=workspace, index=index)
+    git(ledger, ["rev-parse", f"{parent}^{{tree}}"])
+    git(ledger, ["read-tree", "--empty"], workspace=workspace, index=index)
+    selected = [
+        str(entry["path"])
+        for entry in workspace_content_entries(
+            workspace,
+            as_lift=as_lift,
+            policy=policy,
+        )
+    ]
+    if selected:
+        git(
+            ledger,
+            [
+                "--literal-pathspecs",
+                "add",
+                "-f",
+                "-A",
+                "--pathspec-from-file=-",
+                "--pathspec-file-nul",
+            ],
+            workspace=workspace,
+            index=index,
+            input_text="\0".join(selected) + "\0",
+        )
+    excluded_path = str(policy["excludedSentinelPath"])
+    captured = set(
+        nul_paths(
+            git(
+                ledger,
+                ["ls-files", "-z"],
+                workspace=workspace,
+                index=index,
+            ).stdout
+        )
+    )
+    removals = sorted(
+        path for path in captured if path_is_excluded(path, excluded_path)
+    )
+    if removals:
+        git(
+            ledger,
+            ["update-index", "--force-remove", "-z", "--stdin"],
+            workspace=workspace,
+            index=index,
+            input_text="\0".join(removals) + "\0",
+        )
+    remaining = set(
+        nul_paths(
+            git(
+                ledger,
+                ["ls-files", "-z"],
+                workspace=workspace,
+                index=index,
+            ).stdout
+        )
+    )
+    if any(path_is_excluded(path, excluded_path) for path in remaining):
+        raise CheckpointError("hard-excluded fixture path entered the private index")
     return git(ledger, ["write-tree"], workspace=workspace, index=index).stdout.strip()
 
 
@@ -432,6 +757,17 @@ def _create_checkpoint_locked(
         raise CheckpointError("workspace reconstruction state omitted its baseline")
     if resolve_commit(ledger, baseline_ref) != baseline_commit:
         raise CheckpointError("private ledger baseline does not match reconstruction state")
+    fixture_policy = baseline_fixture_policy(ledger, baseline_commit)
+    stored_policy = state.get("fixturePolicy")
+    if stored_policy is None:
+        state["fixturePolicy"] = fixture_policy
+        atomic_json(state_path, state)
+    elif stored_policy != fixture_policy:
+        raise CheckpointError(
+            "workspace reconstruction policy does not match the immutable baseline"
+        )
+    verify_workspace_fixture_policy(workspace, fixture_policy)
+    excluded_path = str(fixture_policy["excludedSentinelPath"])
 
     storage_device: str | None = None
     storage_volume_id: str | None = None
@@ -496,8 +832,22 @@ def _create_checkpoint_locked(
             import_cloud_objects(ledger, workspace, cloud_bundle, as_lift=as_lift)
         finally:
             shutil.rmtree(cloud_temporary)
-        first_tree = staged_tree(ledger, workspace, parent_commit, temporary / "first.index")
-        second_tree = staged_tree(ledger, workspace, parent_commit, temporary / "second.index")
+        first_tree = staged_tree(
+            ledger,
+            workspace,
+            parent_commit,
+            temporary / "first.index",
+            as_lift=as_lift,
+            policy=fixture_policy,
+        )
+        second_tree = staged_tree(
+            ledger,
+            workspace,
+            parent_commit,
+            temporary / "second.index",
+            as_lift=as_lift,
+            policy=fixture_policy,
+        )
         if first_tree != second_tree:
             raise CheckpointError("workspace changed while the checkpoint was being captured")
         tree = first_tree
@@ -547,6 +897,13 @@ def _create_checkpoint_locked(
             tree=tree,
             parents=parents,
             git_snapshot_sha256=git_snapshot["sha256"],
+            excluded_path=excluded_path,
+        )
+        verify_workspace_tree_content(
+            workspace,
+            as_lift=as_lift,
+            policy=fixture_policy,
+            manifest=manifest,
         )
         required_values = (required_path, required_sha256, required_size)
         if any(value is not None for value in required_values):
@@ -576,11 +933,24 @@ def _create_checkpoint_locked(
                 or required_entry.get("executable") is not False
             ):
                 raise CheckpointError("required phone evidence is not exact in the checkpoint")
-        third_tree = staged_tree(ledger, workspace, parent_commit, temporary / "third.index")
+        third_tree = staged_tree(
+            ledger,
+            workspace,
+            parent_commit,
+            temporary / "third.index",
+            as_lift=as_lift,
+            policy=fixture_policy,
+        )
         after = workspace_fingerprint(workspace, as_lift=as_lift)
         after_git_snapshot = cloud_git_snapshot(workspace, as_lift=as_lift)
         if third_tree != tree or after != original or after_git_snapshot != git_snapshot:
             raise CheckpointError("workspace changed while the checkpoint was being captured")
+        verify_workspace_tree_content(
+            workspace,
+            as_lift=as_lift,
+            policy=fixture_policy,
+            manifest=manifest,
+        )
 
     if existing_record is not None:
         if (
@@ -684,6 +1054,7 @@ def _create_checkpoint_locked(
         "parents": parents,
         "cloudHead": cloud_head,
         "gitSnapshotSha256": git_snapshot["sha256"],
+        "fixturePolicy": fixture_policy,
         "historyRefs": history_refs,
         "manifestPath": str(manifest_path),
         "manifestSha256": manifest["manifestSha256"],
@@ -706,6 +1077,7 @@ def _create_checkpoint_locked(
             "parents",
             "cloudHead",
             "gitSnapshotSha256",
+            "fixturePolicy",
             "historyRefs",
             "manifestSha256",
             "manifestFileSha256",
@@ -738,6 +1110,7 @@ def _create_checkpoint_locked(
             "parents",
             "cloudHead",
             "gitSnapshotSha256",
+            "fixturePolicy",
             "historyRefs",
             "manifestSha256",
             "manifestFileSha256",
