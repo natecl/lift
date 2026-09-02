@@ -12,4 +12,6 @@ coverage/
 *.pem
 *.key
 .lift/
-
+__pycache__/
+*.py[cod]
+.lift-spike/

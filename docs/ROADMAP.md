@@ -1,6 +1,6 @@
 # Zero-to-Launch Roadmap
 
-Last updated: 2026-08-31
+Last updated: 2026-09-02
 
 ## Roadmap principle
 
@@ -34,6 +34,27 @@ Remove the two technical unknowns capable of invalidating the first promise.
 - produce cloud and returning-local commits and perform an isolated three-way merge;
 - verify that the user's branch, refs, real index, and working tree remain untouched during capture;
 - test clean and deliberate conflict returns.
+
+### Current evidence
+
+The founder EC2 spike now passes the provider-path portion once: direct phone control, strongly corroborated laptop-off execution, EC2 stop/start recovery, exact post-restart folder binding, guarded native approval observation, versioned checkpointing, exact S3 restore, and a fresh `safeToClose: true` evaluation. Phase 0 is still open because the complete real-project Land loop, deliberate clean/conflicted reconciliation, zero-terminal product journey, provider-service identity isolation, network recovery, and revocation remain unproven.
+
+### Evidence recorded on 2026-09-01
+
+- A real Ubuntu EC2 instance ran the provider-blind workload recipe against a real workspace on a separate encrypted EBS volume.
+- ChatGPT on the founder's phone paired directly with the EC2-hosted Codex Remote environment and controlled the intended workspace without a desktop relay in the data path.
+- A fresh laptop-off challenge was issued immediately before the founder shut down the Mac; the exact nonce, source, and cloud `cwd` were then written from the phone, and later Mac reboot timestamps strongly corroborated the shutdown. This is human-attested founder evidence, not cryptographic proof of device power state, so the public laptop-off promotion gate remains open.
+- Immutable Lift-private Git checkpoints `0001` and `0002` were created on the exact encrypted EBS workspace. Checksummed bundles and manifests were stored as versioned private S3 objects, downloaded by exact version, and restored into fresh repositories with commit, tree, history-ref, and evidence verification.
+- One EC2 stop/start changed the guest boot ID while the exact encrypted EBS volume reattached. Checkpoint `0002`'s commit and bundle and both proof files recovered, the provider-neutral systemd runner auto-started healthy, and the exact Codex Remote environment ID was preserved.
+- Server-side native-project reconstruction after that restart passed. At the end of 2026-09-01, end-to-end recovery still required a fresh post-baseline phone task, approval/proof evidence, and a following restore-tested checkpoint.
+
+### Evidence recorded on 2026-09-02
+
+- A brand-new phone task in the existing EC2 folder connection retained the exact canonical `cwd`, null project assignment, and correct runtime roots.
+- The root-owned passive observer and independent historical verifier agreed on the exact approval canary, resolution lifecycle, proof command, successful completions, and unchanged policy guard. The selected decision remains a guarded official-client inference because the public protocol omits it.
+- Immutable checkpoint `0003-post-restart-phone-proof` was uploaded as checksummed, versioned private S3 objects and restored into a fresh repository with exact commit, tree, file-count, manifest, and evidence verification.
+- Fresh live status reported EC2 running, Systems Manager online, the generic runner active/healthy/ready, Codex Remote connected, all handoff gates true, and `safeToClose: true`.
+- Separate provider-service identity and credential isolation are pre-alpha gates. Network interruption, revocation, repeated laptop-off runs, conflict-safe Land, and the complete local return remain pending.
 
 ### Exit criteria
 
@@ -73,6 +94,7 @@ The founder completes one real loop without using a terminal during the product 
 - one `Land Workspace` button;
 - private Git three-way merge and automatic clean return;
 - visible conflict preservation;
+- separate provider-service identity and credential isolation from untrusted workspace execution;
 - stop, delete, and emergency revoke.
 
 ### Exit criteria

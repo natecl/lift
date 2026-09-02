@@ -1,6 +1,6 @@
 # Research and Market Context
 
-Last updated: 2026-08-31
+Last updated: 2026-09-01
 
 ## Research conclusion
 
@@ -39,7 +39,7 @@ The decision-level findings are:
 - ECS/Fargate, Modal, and similar job runtimes are better suited to bounded work than a living personal workspace;
 - Lift should preserve existing provider applications rather than building its own mobile interface;
 - the documented Codex phone path still requires an awake Mac or Windows desktop host, even when work executes on a remote SSH host;
-- current Codex CLI commands suggest an experimental headless daemon and pairing path that must be tested before it becomes a product promise;
+- the experimental Codex headless daemon and pairing path now work in one real Ubuntu EC2 founder run, but lifecycle reliability and provider support must pass before it becomes a product promise;
 - Claude Code has the cleaner documented direct mobile-to-headless-process workflow;
 - the workspace substrate can be agent-neutral even though mobile pairing, authentication, approvals, and session resume remain provider-specific.
 
@@ -48,6 +48,16 @@ The complete synthesis, comparison table, sources, limitations, and raw-run meta
 Raw artifact:
 
 `~/Documents/Last30Days/persistent-cloud-workspaces-for-coding-agents-with-phone-access-and-local-to-cloud-handoff-raw-v3-2026-08-31.md`
+
+## Phase 0 technical evidence update
+
+On 2026-09-01, ChatGPT on the founder's phone paired directly with Codex Remote on a real Ubuntu EC2 workspace backed by a separate encrypted EBS volume. A fresh challenge/proof exchange and later Mac reboot timestamps strongly corroborated the founder's report that the phone continued while the Mac was shut down. Because Lift had no hardware-rooted power-state signal or independent observer, this is strong founder evidence rather than cryptographic device attestation.
+
+The same run created immutable Lift-private Git checkpoints `0001` and `0002` on the exact EBS workspace. Checksummed bundles and manifests were stored as versioned private S3 objects and restored by exact version into fresh repositories with commit, tree, retained-history, and evidence-file verification.
+
+A subsequent EC2 stop/start changed the guest boot ID while reattaching the exact encrypted EBS workspace. Checkpoint `0002`'s commit and bundle and both proof files recovered, the provider-neutral systemd runner automatically started healthy, and the exact Codex Remote environment ID was preserved. This answers whether direct phone-to-EC2 execution is technically possible on the tested experimental surface, materially de-risks durable cloud checkpoint recovery, and passes structural restart recovery once.
+
+Server-side native-project reconstruction and exact-root readiness pass on the preserved environment. On 2026-09-02, a fresh post-baseline phone task then passed exact folder/runtime binding, guarded approval observation, and the post-restart proof. Following checkpoint `0003` restored successfully from exact versioned S3 objects, and fresh live evaluation reported `safeToClose: true`. This closes the single-run end-to-end feasibility question without establishing official support or repeatability. Separate provider-service identity and credential isolation are pre-alpha gates. The run also does not prove network recovery, revocation, complete Land, market demand, retention, or willingness to pay.
 
 ## Evidence of the problem
 

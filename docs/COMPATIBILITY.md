@@ -1,6 +1,6 @@
 # Compatibility and Support Matrix
 
-Last updated: 2026-08-31
+Last updated: 2026-09-02
 
 ## Status vocabulary
 
@@ -15,13 +15,13 @@ Never label a component Verified based only on installation or process health. P
 
 ## Current product claim
 
-Lift is in a Codex-first feasibility and private-alpha planning phase. No public laptop-off compatibility claim is final until the versioned EC2 and phone tests pass.
+Lift is in a Codex-first feasibility and private-alpha planning phase. Direct phone control and one full EC2 stop/start recovery have passed as founder evidence, with a laptop-off sequence strongly corroborated but not cryptographically attested. The post-restart run included exact folder/runtime binding, guarded approval observation, proof, following checkpoint, exact-version restore, and a fresh safe-to-close evaluation. Separate provider-service identity and credential isolation are pre-alpha gates; network recovery, revocation, repetition, provider-policy review, and complete Land remain pending, so no public laptop-off compatibility claim is final.
 
 ## Provider matrix
 
 | Provider path | Runtime | Existing user interface | Status | Current limitation |
 | --- | --- | --- | --- | --- |
-| Codex direct headless Remote | Ubuntu x86_64 EC2 | ChatGPT/Codex phone experience | Experimental | Local Ubuntu precursor passes provider-URL pairing, direct iPhone task execution, one-time approvals, a one-file Git checkpoint, and clean fast-forward return on CLI/App Server `0.151.0`–`0.152.0`. A real workspace under `/home/lift` is required; the picker rejected a symlink to `/workspace`, and the default `Chat` directory was empty. EC2, network, guest restart, literal laptop-off, revocation, and provider-policy tests remain pending. |
+| Codex direct headless Remote | Ubuntu x86_64 EC2 | ChatGPT/Codex phone experience | Experimental | The local precursor and one real EC2 run pass provider-URL pairing and direct phone task execution against a real workspace under `/home/lift`. The EC2 run's laptop-off sequence is strongly corroborated by a fresh challenge/proof exchange and Mac reboot timestamps, but it is human-attested rather than cryptographically device-attested. Three immutable private-Git checkpoints were restored from exact checksummed, versioned S3 objects. One EC2 stop/start recovered the exact EBS volume, earlier checkpoints and proof files, runner, and Remote environment; after server-side project/root repair, a fresh phone task passed exact folder/runtime binding, guarded approval observation, proof, following checkpoint, restore, and safe-to-close evaluation once. Separate provider-service identity and credential isolation, network recovery, revocation, provider-policy review, repeated runs, and complete Land remain pending. |
 | Codex Desktop to SSH | Ubuntu x86_64 EC2 plus Mac/Windows desktop | ChatGPT Desktop and paired phone | Relay required | Documented phone flow still depends on the awake desktop host; this cannot support the laptop-off claim. |
 | Claude Code Remote Control | Ubuntu x86_64 EC2 | Claude web/mobile | Planned validation recipe | Cleaner documented headless remote path, but account eligibility, EC2 behavior, and reconnect must be tested. |
 | Custom remote-capable CLI | Ubuntu x86_64 EC2 | Provider-owned client | Planned advanced mode | No first-class badge until auth, readiness, recovery, and policy pass. |
@@ -51,13 +51,13 @@ Every release records:
 
 | Component | Initial target | Status |
 | --- | --- | --- |
-| Distribution | Ubuntu LTS, exact image pinned per release | Selected, version pending implementation |
+| Distribution | Ubuntu LTS, exact image pinned per release | Exercised on a real Phase 0 EC2 instance; release pinning remains pending |
 | Architecture | x86_64 | Selected for first slice |
-| Compute | One EC2 VM per workspace | Selected for first slice |
-| Storage | Separate encrypted gp3 EBS volume | Selected for first slice |
+| Compute | One EC2 VM per workspace | One full Phase 0 stop/start phone recovery passed; provider-service and credential isolation remain pre-alpha gates |
+| Storage | Separate encrypted gp3 EBS volume | Exact volume and checkpoint `0002` recovered across one stop/start |
 | Administration | AWS Systems Manager; restricted SSH only for required diagnostics | Selected direction |
-| Process supervision | `systemd` user services | Selected direction |
-| Region | One region | Pending explicit selection |
+| Process supervision | `systemd` user services | Provider-neutral runner auto-started healthy after one stop/start |
+| Region | One region | Phase 0 exercised in `us-east-1`; product-region decision remains pending |
 | Managed production runtime | Daytona VM sandboxes or another candidate | Evaluation only after validation |
 
 ## Repository support

@@ -95,11 +95,11 @@ Lift teleports your active coding workspace to a persistent cloud computer so an
 
 ## Current narrow wedge
 
-One user lifts one active coding project from macOS into an isolated persistent Linux workspace, continues Codex through an existing OpenAI interface, and safely reconciles the result back to the laptop. Direct phone-to-Linux Codex control is the first feasibility gate, not an already-proven promise.
+One user lifts one active coding project from macOS into an isolated persistent Linux workspace, continues Codex through an existing OpenAI interface, and safely reconciles the result back to the laptop. A founder-only spike has observed direct phone-to-Ubuntu-EC2 control and one full stop/start recovery with exact post-restart folder binding, guarded approval observation, proof, and a following restore-tested immutable checkpoint. It is not yet a supported promise because separate provider-service identity and credential isolation, network recovery, revocation, repeated laptop-off evidence, and complete Land remain pending.
 
 ## Current phase
 
-Phase 0: prove the Codex headless phone path and the private Git capture/merge path before treating the laptop-off promise as a supported product. See [`ROADMAP.md`](ROADMAP.md).
+Phase 0: direct phone execution, three private-Git cloud checkpoints, and one full EC2 stop/start phone recovery are evidenced. Finish service-identity and credential isolation, network recovery, revocation, conflict-safe Land, the zero-terminal product journey, and repetition before treating the laptop-off promise as supported. See [`ROADMAP.md`](ROADMAP.md).
 
 ## Knowledge-base maintenance
 

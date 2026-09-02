@@ -1,0 +1,469 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >-
+  Disposable, single-user EC2 environment for the Lift Codex laptop-off
+  feasibility spike. The stack has no inbound network path.
+
+Parameters:
+  AmiId:
+    Type: AWS::EC2::Image::Id
+    Description: Canonical Ubuntu 24.04 x86_64 AMI resolved at deployment time.
+  InstanceType:
+    Type: String
+    Default: c7i-flex.large
+    AllowedValues:
+      - c7i-flex.large
+  WorkspaceVolumeSize:
+    Type: Number
+    Default: 30
+    MinValue: 20
+    MaxValue: 100
+  AutoStopMinutes:
+    Type: Number
+    Default: 240
+    MinValue: 60
+    MaxValue: 720
+  SpikeId:
+    Type: String
+    AllowedPattern: "[a-z0-9-]{3,32}"
+
+Resources:
+  Vpc:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.67.0.0/24
+      EnableDnsHostnames: true
+      EnableDnsSupport: true
+      Tags:
+        - Key: Name
+          Value: !Sub "lift-${SpikeId}"
+        - Key: Project
+          Value: Lift
+        - Key: Purpose
+          Value: CodexLaptopOffSpike
+
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Project
+          Value: Lift
+        - Key: Purpose
+          Value: CodexLaptopOffSpike
+
+  InternetGatewayAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      InternetGatewayId: !Ref InternetGateway
+      VpcId: !Ref Vpc
+
+  PublicSubnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: !Select [0, !GetAZs ""]
+      CidrBlock: 10.67.0.0/26
+      MapPublicIpOnLaunch: true
+      VpcId: !Ref Vpc
+      Tags:
+        - Key: Name
+          Value: !Sub "lift-${SpikeId}-public"
+        - Key: Project
+          Value: Lift
+        - Key: Purpose
+          Value: CodexLaptopOffSpike
+
+  RouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref Vpc
+      Tags:
+        - Key: Project
+          Value: Lift
+        - Key: Purpose
+          Value: CodexLaptopOffSpike
+
+  DefaultRoute:
+    Type: AWS::EC2::Route
+    DependsOn: InternetGatewayAttachment
+    Properties:
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+      RouteTableId: !Ref RouteTable
+
+  RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref RouteTable
+      SubnetId: !Ref PublicSubnet
+
+  WorkspaceSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: No inbound access; temporary broad egress for the isolated spike.
+      VpcId: !Ref Vpc
+      SecurityGroupIngress: []
+      SecurityGroupEgress:
+        - IpProtocol: "-1"
+          CidrIp: 0.0.0.0/0
+          Description: Visible temporary permission for package, AWS, Git, and provider traffic.
+      Tags:
+        - Key: Name
+          Value: !Sub "lift-${SpikeId}-no-ingress"
+        - Key: Project
+          Value: Lift
+        - Key: Purpose
+          Value: CodexLaptopOffSpike
+
+  TransferBucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      OwnershipControls:
+        Rules:
+          - ObjectOwnership: BucketOwnerEnforced
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      VersioningConfiguration:
+        Status: Enabled
+      LifecycleConfiguration:
+        Rules:
+          - Id: AbortIncompleteMultipartUploads
+            Status: Enabled
+            AbortIncompleteMultipartUpload:
+              DaysAfterInitiation: 1
+      Tags:
+        - Key: Project
+          Value: Lift
+        - Key: Purpose
+          Value: CodexLaptopOffSpike
+
+  TransferBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref TransferBucket
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: DenyInsecureTransport
+            Effect: Deny
+            Principal: "*"
+            Action: "s3:*"
+            Resource:
+              - !GetAtt TransferBucket.Arn
+              - !Sub "${TransferBucket.Arn}/*"
+            Condition:
+              Bool:
+                aws:SecureTransport: false
+
+  InstanceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub "${AWS::StackName}-instance-role"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ec2.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
+      Policies:
+        - PolicyName: LiftSpikeTransferObjects
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:GetObjectVersion
+                  - s3:PutObject
+                Resource: !Sub "${TransferBucket.Arn}/sessions/*"
+              - Effect: Allow
+                Action: s3:ListBucket
+                Resource: !GetAtt TransferBucket.Arn
+                Condition:
+                  StringLike:
+                    s3:prefix: "sessions/*"
+      Tags:
+        - Key: Project
+          Value: Lift
+        - Key: Purpose
+          Value: CodexLaptopOffSpike
+
+  InstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      InstanceProfileName: !Sub "${AWS::StackName}-instance-profile"
+      Roles:
+        - !Ref InstanceRole
+
+  WorkspaceInstance:
+    Type: AWS::EC2::Instance
+    DependsOn:
+      - DefaultRoute
+      - InstanceProfile
+    Properties:
+      ImageId: !Ref AmiId
+      InstanceType: !Ref InstanceType
+      IamInstanceProfile: !Ref InstanceProfile
+      DisableApiTermination: true
+      InstanceInitiatedShutdownBehavior: stop
+      MetadataOptions:
+        HttpEndpoint: enabled
+        HttpProtocolIpv6: disabled
+        HttpPutResponseHopLimit: 1
+        HttpTokens: required
+        InstanceMetadataTags: disabled
+      NetworkInterfaces:
+        - AssociatePublicIpAddress: true
+          DeleteOnTermination: true
+          DeviceIndex: "0"
+          GroupSet:
+            - !Ref WorkspaceSecurityGroup
+          SubnetId: !Ref PublicSubnet
+      BlockDeviceMappings:
+        - DeviceName: /dev/sda1
+          Ebs:
+            DeleteOnTermination: true
+            Encrypted: true
+            VolumeSize: 16
+            VolumeType: gp3
+      Tags:
+        - Key: Name
+          Value: !Sub "lift-${SpikeId}"
+        - Key: Project
+          Value: Lift
+        - Key: Purpose
+          Value: CodexLaptopOffSpike
+        - Key: ManagedBy
+          Value: LiftSpikeHarness
+        - Key: SpikeId
+          Value: !Ref SpikeId
+      UserData:
+        Fn::Base64: !Sub |
+          #!/usr/bin/env bash
+          set -euo pipefail
+          exec > >(tee -a /var/log/lift-spike-bootstrap.log) 2>&1
+          export DEBIAN_FRONTEND=noninteractive
+
+          apt-get update
+          apt-get install -y \
+            apparmor-profiles \
+            apparmor-utils \
+            bubblewrap \
+            ca-certificates \
+            curl \
+            e2fsprogs \
+            git \
+            iptables \
+            jq \
+            python3 \
+            rsync \
+            uidmap \
+            unzip
+
+          if ! command -v aws >/dev/null 2>&1; then
+            curl -fsSL https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip \
+              -o /tmp/awscliv2.zip
+            rm -rf /tmp/aws
+            unzip -q /tmp/awscliv2.zip -d /tmp
+            /tmp/aws/install --bin-dir /usr/local/bin --install-dir /usr/local/aws-cli
+            rm -rf /tmp/aws /tmp/awscliv2.zip
+          fi
+
+          if ! id lift >/dev/null 2>&1; then
+            useradd --uid 1001 --create-home --shell /bin/bash lift
+          fi
+          passwd --lock lift || true
+          loginctl enable-linger lift
+
+          ROOT_PARTITION=$(readlink -f "$(findmnt -n -o SOURCE /)")
+          ROOT_PARENT=$(lsblk -ndo PKNAME "$ROOT_PARTITION")
+          ROOT_DISK="/dev/$ROOT_PARENT"
+          DATA_DEVICE=""
+
+          for _ in $(seq 1 120); do
+            while read -r DEVICE DEVICE_TYPE; do
+              if [ "$DEVICE_TYPE" = "disk" ] && [ "$DEVICE" != "$ROOT_DISK" ]; then
+                DATA_DEVICE="$DEVICE"
+                break
+              fi
+            done < <(lsblk -dpno NAME,TYPE)
+            [ -n "$DATA_DEVICE" ] && break
+            sleep 5
+          done
+
+          if [ -z "$DATA_DEVICE" ]; then
+            echo "Timed out waiting for the encrypted workspace volume" >&2
+            exit 1
+          fi
+
+          if ! blkid "$DATA_DEVICE" >/dev/null 2>&1; then
+            mkfs.ext4 -F -L LIFT_WORKSPACE "$DATA_DEVICE"
+          fi
+
+          DATA_UUID=$(blkid -s UUID -o value "$DATA_DEVICE")
+          mkdir -p /srv/lift-data
+          if ! grep -q "UUID=$DATA_UUID /srv/lift-data" /etc/fstab; then
+            echo "UUID=$DATA_UUID /srv/lift-data ext4 defaults,nofail 0 2" >> /etc/fstab
+          fi
+          mountpoint -q /srv/lift-data || mount /srv/lift-data
+
+          mkdir -p \
+            /srv/lift-data/workspaces \
+            /srv/lift-data/ledger \
+            /home/lift/workspaces \
+            /var/lib/lift/ledger \
+            /var/lib/lift-spike
+          chown lift:lift /srv/lift-data/workspaces /home/lift/workspaces
+          chmod 0700 /srv/lift-data/ledger /var/lib/lift/ledger
+
+          if ! grep -q "/srv/lift-data/workspaces /home/lift/workspaces" /etc/fstab; then
+            echo "/srv/lift-data/workspaces /home/lift/workspaces none bind,x-systemd.requires-mounts-for=/srv/lift-data 0 0" >> /etc/fstab
+          fi
+          if ! grep -q "/srv/lift-data/ledger /var/lib/lift/ledger" /etc/fstab; then
+            echo "/srv/lift-data/ledger /var/lib/lift/ledger none bind,x-systemd.requires-mounts-for=/srv/lift-data 0 0" >> /etc/fstab
+          fi
+          mountpoint -q /home/lift/workspaces || mount --bind /srv/lift-data/workspaces /home/lift/workspaces
+          mountpoint -q /var/lib/lift/ledger || mount --bind /srv/lift-data/ledger /var/lib/lift/ledger
+
+          mkdir -p /home/lift/.codex /home/lift/.cache/codex /home/lift/.local/bin
+          chown -R lift:lift /home/lift/.codex /home/lift/.cache /home/lift/.local
+
+          if [ -f /usr/share/apparmor/extra-profiles/bwrap-userns-restrict ]; then
+            cp /usr/share/apparmor/extra-profiles/bwrap-userns-restrict \
+              /etc/apparmor.d/bwrap-userns-restrict
+            apparmor_parser -r /etc/apparmor.d/bwrap-userns-restrict
+          fi
+
+          cat >/etc/systemd/system/lift-block-workspace-imds.service <<'UNIT'
+          [Unit]
+          Description=Block the unprivileged Lift workspace user from EC2 metadata
+          After=network-online.target
+          Wants=network-online.target
+
+          [Service]
+          Type=oneshot
+          RemainAfterExit=yes
+          ExecStart=/bin/sh -c '/usr/sbin/iptables -C OUTPUT -m owner --uid-owner lift -d 169.254.169.254/32 -j REJECT 2>/dev/null || /usr/sbin/iptables -A OUTPUT -m owner --uid-owner lift -d 169.254.169.254/32 -j REJECT'
+          ExecStop=/bin/sh -c '/usr/sbin/iptables -D OUTPUT -m owner --uid-owner lift -d 169.254.169.254/32 -j REJECT 2>/dev/null || true'
+
+          [Install]
+          WantedBy=multi-user.target
+          UNIT
+          systemctl daemon-reload
+          systemctl enable --now lift-block-workspace-imds.service
+
+          cat >/etc/systemd/system/lift-spike-autostop.service <<'UNIT'
+          [Unit]
+          Description=Stop the disposable Lift spike before it runs indefinitely
+
+          [Service]
+          Type=oneshot
+          ExecStart=/sbin/shutdown -h now
+          UNIT
+
+          cat >/etc/systemd/system/lift-spike-autostop.timer <<UNIT
+          [Unit]
+          Description=Automatic stop timer for the disposable Lift spike
+
+          [Timer]
+          OnBootSec=${AutoStopMinutes}min
+          AccuracySec=1min
+          Unit=lift-spike-autostop.service
+
+          [Install]
+          WantedBy=timers.target
+          UNIT
+          systemctl daemon-reload
+          systemctl enable --now lift-spike-autostop.timer
+
+          if ! command -v amazon-ssm-agent >/dev/null 2>&1 && ! snap list amazon-ssm-agent >/dev/null 2>&1; then
+            snap install amazon-ssm-agent --classic
+          fi
+          systemctl enable --now amazon-ssm-agent 2>/dev/null || \
+            systemctl enable --now snap.amazon-ssm-agent.amazon-ssm-agent.service
+
+          runuser -u lift -- env \
+            HOME=/home/lift \
+            CODEX_RELEASE=0.152.1 \
+            CODEX_NON_INTERACTIVE=1 \
+            /bin/bash -lc 'curl -fsSL https://chatgpt.com/codex/install.sh | sh'
+
+          CODEX_BIN=$(runuser -u lift -- env HOME=/home/lift /bin/bash -lc 'command -v codex')
+          CODEX_VERSION=$(runuser -u lift -- env HOME=/home/lift "$CODEX_BIN" --version)
+          if [ "$(sysctl -n kernel.unprivileged_userns_clone)" = "1" ] \
+            && [ "$(sysctl -n user.max_user_namespaces)" -gt "0" ] \
+            && runuser -u lift -- /usr/bin/bwrap \
+              --unshare-user \
+              --unshare-net \
+              --die-with-parent \
+              --ro-bind / / \
+              -- /usr/bin/true \
+            && runuser -u lift -- env HOME=/home/lift "$CODEX_BIN" sandbox -- /usr/bin/true; then
+            SANDBOX_READY=true
+          else
+            SANDBOX_READY=false
+          fi
+
+          jq -n \
+            --arg status ready \
+            --arg codex_bin "$CODEX_BIN" \
+            --arg codex_version "$CODEX_VERSION" \
+            --arg workspace_path /home/lift/workspaces \
+            --argjson sandbox_ready "$SANDBOX_READY" \
+            '{status:$status,codex_bin:$codex_bin,codex_version:$codex_version,workspace_path:$workspace_path,sandbox_ready:$sandbox_ready}' \
+            >/var/lib/lift-spike/bootstrap.json
+          chmod 0600 /var/lib/lift-spike/bootstrap.json
+
+  WorkspaceVolume:
+    Type: AWS::EC2::Volume
+    DeletionPolicy: Snapshot
+    UpdateReplacePolicy: Snapshot
+    Properties:
+      AvailabilityZone: !GetAtt WorkspaceInstance.AvailabilityZone
+      Encrypted: true
+      Size: !Ref WorkspaceVolumeSize
+      VolumeType: gp3
+      Tags:
+        - Key: Name
+          Value: !Sub "lift-${SpikeId}-workspace"
+        - Key: Project
+          Value: Lift
+        - Key: Purpose
+          Value: CodexLaptopOffSpike
+        - Key: ManagedBy
+          Value: LiftSpikeHarness
+        - Key: SpikeId
+          Value: !Ref SpikeId
+
+  WorkspaceVolumeAttachment:
+    Type: AWS::EC2::VolumeAttachment
+    Properties:
+      Device: /dev/sdf
+      InstanceId: !Ref WorkspaceInstance
+      VolumeId: !Ref WorkspaceVolume
+
+Outputs:
+  InstanceId:
+    Value: !Ref WorkspaceInstance
+  WorkspaceVolumeId:
+    Value: !Ref WorkspaceVolume
+  TransferBucketName:
+    Value: !Ref TransferBucket
+  WorkspacePath:
+    Value: /home/lift/workspaces/lift-ec2-spike
+  LedgerPath:
+    Value: /var/lib/lift/ledger
+  VpcId:
+    Value: !Ref Vpc
+  SecurityGroupId:
+    Value: !Ref WorkspaceSecurityGroup

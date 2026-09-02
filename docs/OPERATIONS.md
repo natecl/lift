@@ -1,6 +1,6 @@
 # Alpha Operations and Support
 
-Last updated: 2026-08-31
+Last updated: 2026-09-01
 
 ## Operating principle
 
@@ -30,7 +30,7 @@ Unsupported does not mean “probably works.” It means Lift detects the condit
 - confirm the user matches the ICP;
 - choose a real noncritical repository;
 - confirm a supported provider account and phone application;
-- explain that direct Codex phone continuation remains gated until the headless path is proven;
+- explain that direct Codex phone continuation, structural EC2 restart recovery, and server-side native-project reconstruction each have one founder-only observation, while a fresh post-baseline bound phone-task proof, controlled approval round trip, following restore-tested checkpoint, separate provider-service identity and credential isolation, network recovery, revocation, repetition, complete Land, and provider-policy review remain gated;
 - identify sensitive files and expected exclusions;
 - set a conservative compute cap;
 - establish the support channel and emergency stop path;
