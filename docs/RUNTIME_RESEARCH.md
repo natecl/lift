@@ -1,6 +1,6 @@
 # Runtime and Remote-Control Research
 
-Last updated: 2026-09-01
+Last updated: 2026-09-02
 
 ## Executive decision
 
@@ -11,6 +11,8 @@ This decision optimizes for the fastest credible test of Lift's core promise:
 > Move a real, dirty local workspace to a persistent cloud computer and continue controlling the user's existing agent without asking the user to adopt a new interface.
 
 The first implementation is not a commitment to EC2 as the permanent production runtime. It deliberately chooses a complete Linux machine while the product risk is continuity and provider compatibility rather than machine density.
+
+The current runtime evidence, failure sequence, security boundary, and next Land slice are summarized in [`CURRENT_STATE.md`](CURRENT_STATE.md).
 
 ## Product-boundary finding
 
@@ -132,13 +134,18 @@ Recommended prototype shape:
 
 Stopping an EC2 instance removes compute charges but does not preserve RAM or running processes. Attached EBS state remains billable and persistent. Lift should promise semantic continuity after a stop, not memory-level process continuation.
 
-### Phase 0 runtime evidence recorded on 2026-09-01
+### Phase 0 runtime evidence recorded on 2026-09-01 and completed on 2026-09-02
 
 - A real single-tenant Ubuntu EC2 instance ran Codex Remote against the intended workspace on a separate encrypted EBS volume.
 - ChatGPT on the founder's phone paired directly with that environment and controlled the correct cloud `cwd`; the data path did not require ChatGPT Desktop as a relay.
 - A fresh unpredictable challenge was armed immediately before the founder reported shutting down the Mac. The exact nonce, source, and cloud `cwd` were then written into the EBS workspace from the phone, and later Mac reboot timestamps strongly corroborated the order of events. This is human-attested founder evidence, not cryptographic attestation that the Mac was powered off.
 - Immutable Lift-private Git checkpoints `0001` and `0002` were created against the exact encrypted EBS workspace. Checksummed bundles and manifests were stored as versioned private S3 objects, downloaded by exact version, and restored into fresh repositories with commit, tree, history-ref, and evidence-file verification.
 - One EC2 stop/start changed the guest boot ID while the exact encrypted workspace EBS volume reattached. Checkpoint `0002`'s commit and bundle and both proof files recovered, the provider-neutral systemd runner automatically started healthy, and the exact Codex Remote environment ID was preserved. After server-side native-project reconstruction, a fresh post-baseline phone task passed exact folder/runtime binding, guarded approval observation, proof, following checkpoint `0003`, exact-version restore, and fresh safe-to-close evaluation. Separate provider-service identity and credential isolation are pre-alpha gates.
+- The restart exposed that daemon liveness and Remote environment persistence do not reconstruct provider semantic state. With no native project registered, new tasks used projectless paths outside Lift's write boundary. The recipe-scoped connector now prepares and reads back the exact server project/root, while readiness separately checks Remote and controller prerequisites.
+- Server project registration did not make that project visible in the phone picker. The passing task used the provider's `Add new folder` path, had the exact canonical `cwd`, and retained `projectId: null`; this is folder continuity, not controller project assignment.
+- The final passing runtime used the managed Codex CLI and App Server `0.152.1`; the guest-bootstrap metadata still records the originally installed CLI `0.152.0`.
+- The approval observer and historical verifier agreed on the request, resolution, two exact command lifecycles, and completed turn. The provider protocol still omits selected decision and responder identity, so the approval claim remains a guarded founder-only inference.
+- The runtime remains unsuitable for external alpha until provider credentials are isolated from the workspace Unix identity and the mutable AWS CLI/Codex installer downloads are replaced with signed or content-addressed inputs.
 
 Official references:
 
@@ -252,7 +259,7 @@ Requires a spike:
 - whether the observed Codex headless pairing and task flow repeats reliably across users, provider releases, and independent laptop-off runs;
 - whether the provider permits and sustains the required cloud-host authentication flow;
 - which Codex session metadata can be preserved without depending on unsupported internals;
-- whether the preserved Codex Remote environment accepts a new native phone task after EC2 stop/start and reconnects correctly after network interruption;
+- whether the once-passed fresh post-stop/start phone path repeats reliably and reconnects correctly after network interruption;
 - which Ubuntu kernel and `bubblewrap` settings eliminate avoidable sandbox escalation prompts without weakening isolation;
 - the smallest safe SSH or mesh-network path needed for the stable desktop-relay fallback.
 

@@ -1,6 +1,14 @@
 # Security Baseline
 
+Last updated: 2026-09-02
+
 Lift will execute powerful autonomous tools against source code and credentials on remote infrastructure. Security is part of the initial product definition.
+
+## Current security posture
+
+The merged Phase 0 harness has strong founder-fixture controls: exact live AWS/resource identity binding, private no-follow local state, a marker-gated disposable capture, narrow physical workspace paths, a provider-blind unprivileged runner, root-owned passive approval observation, challenge-bound evidence, immutable checkpoint objects, and exact restore tests. These controls passed the 125-test local suite and one live founder phone run.
+
+It is not safe for external alpha use. The provider daemon and reusable credentials still share the `lift` Unix identity with the untrusted workspace workload; installer bytes are not signature/digest verified before root execution; the production transfer-manifest review does not exist; approval decision/responder attribution is unavailable; and network recovery, revoke, repetition, and complete Land remain untested. See [`CURRENT_STATE.md`](CURRENT_STATE.md) for the coherent current boundary.
 
 ## Security objectives
 
@@ -63,6 +71,8 @@ An attacker who controls Lift authentication or orchestration could reach persis
 - Require explicit approval for sensitive or ignored files.
 - Encrypt payloads in transit and at rest.
 - Maintain content hashes and versioned recovery snapshots.
+
+The Phase 0 capture code is intentionally narrower than these product requirements. It refuses any workspace without the exact generated disposable-fixture marker before creating a private ledger and accepts only the one ignored path declared by that marker. This guard must not be relaxed for real repositories; production capture requires the user-visible manifest and explicit sensitive/ignored-file selection described above.
 
 ### Secrets
 
@@ -138,7 +148,9 @@ That provider-private path is necessary but not sufficient isolation. The Phase 
 
 ### Cloud runtime identity binding
 
-Treat the local spike state as untrusted input. Before a deployed-runtime action, require its exact schema, revision, run and workspace IDs, named AWS profile and region, non-root `lift-admin` principal, canonical local and cloud paths, and identifiers with expected AWS formats. Re-read the live CloudFormation stack by the stored stack identity and proceed only when its exact stack ID and name, safe completed status, expected parameters, and outputs match the persisted record. Resolve the instance, workspace volume, and transfer bucket through `describe-stack-resources` and require their logical type, physical ID, and resource status to match as well. Any malformed, missing, duplicated, drifted, or cross-account binding must stop the operation before Systems Manager, EC2, EBS, or S3 is used.
+Treat the local spike state as untrusted input. Before a deployed-runtime action, require its exact schema, revision, run and workspace IDs, named AWS profile and region, non-root `lift-admin` principal, canonical local and cloud paths, and identifiers with expected AWS formats. Bind the caller to the exact account, principal ARN, and immutable STS user ID so deleting and recreating a same-named IAM user cannot silently inherit authority. Re-read the live CloudFormation stack by the stored stack identity and proceed only when its exact stack ID and name, safe completed status, expected parameters, and outputs match the persisted record. Resolve the instance, workspace volume, and transfer bucket through `describe-stack-resources` and require their logical type, physical ID, and resource status to match as well. Any malformed, missing, duplicated, drifted, or cross-account binding must stop the operation before Systems Manager, EC2, EBS, or S3 is used.
+
+Every AWS subprocess must receive a sanitized inherited environment. Remove ambient AWS access keys, session credentials, profile and region selectors, global and service-specific endpoint overrides, CA-bundle and Botocore configuration, and metadata-endpoint overrides; set `AWS_IGNORE_CONFIGURED_ENDPOINT_URLS=true`; and pass the explicitly selected Lift profile and region as CLI arguments rather than ambient environment state. This prevents shell state or local configuration from redirecting otherwise valid AWS calls to a different identity or endpoint.
 
 The disposable Phase 0 image bootstrap still downloads the official AWS CLI archive and Codex installer without pinning their installer bytes to a reviewed digest or signature. The harness verifies the resulting runtime identity and versions, but that is not equivalent to supply-chain verification. Before any real-user or external-alpha reuse, replace these mutable downloads with a signed, content-addressed image or verify published signatures and pinned digests before root execution.
 

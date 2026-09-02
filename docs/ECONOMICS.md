@@ -1,6 +1,6 @@
 # Pricing and Unit Economics
 
-Last updated: 2026-08-31
+Last updated: 2026-09-02
 
 ## Economic principle
 
@@ -15,6 +15,8 @@ The pricing model should:
 - remain simple enough for a consumer to understand before Lift Off.
 
 All prices in this document are hypotheses to test, not launch commitments.
+
+The founder Phase 0 run produced no willingness-to-pay, retention, or production unit-economics evidence. It used one disposable workspace and manual operation, so its AWS usage cannot be treated as representative customer COGS. Pricing remains unchanged and unvalidated until the complete acknowledged loop works. See [`CURRENT_STATE.md`](CURRENT_STATE.md).
 
 ## Value metric
 

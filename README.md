@@ -8,7 +8,7 @@ Lift provides the computer, state, access, and safety boundaries. It does not bu
 
 ## Status
 
-Codex-first Phase 0 spike and private-alpha planning. A real Ubuntu EC2 workspace now accepts direct Codex Remote tasks from ChatGPT on the founder's phone, and three immutable Lift-private Git checkpoints have been restored from exact versioned S3 objects. The laptop-off run is strongly corroborated by a fresh challenge/proof exchange and Mac reboot timestamps, but it is human-attested rather than cryptographically device-attested. One EC2 stop/start preserved the exact encrypted EBS workspace, earlier checkpoints and proof files, and the Codex Remote environment ID. After repairing native-project reconstruction, a fresh phone task passed the exact folder, guarded approval, proof, following checkpoint, restore, and live safe-to-close gates once. Separate provider-service identity and credential isolation, network recovery, revocation, repeated runs, and complete Land remain pre-alpha or promotion gates. Lift uses one provider-blind workload runner; Codex is merely the first user-owned recipe executed by it.
+Codex-first Phase 0 spike and private-alpha planning. A generated disposable workspace on real Ubuntu EC2 now accepts direct Codex Remote tasks from ChatGPT on the founder's phone, and three immutable Lift-private Git checkpoints have been restored from exact versioned S3 objects. The laptop-off run is strongly corroborated by a fresh challenge/proof exchange and Mac reboot timestamps, but it is human-attested rather than cryptographically device-attested. One EC2 stop/start preserved the exact encrypted EBS workspace, earlier checkpoints and proof files, and the Codex Remote environment ID. After repairing native-project reconstruction, a fresh phone task passed the exact folder, guarded approval, proof, following checkpoint, restore, and live safe-to-close gates once. The Phase 0 code is merged and 125 local tests pass, but arbitrary real-workspace capture, the no-terminal product journey, and complete Land are not implemented. Land on the disposable fixture is next. Separate provider-service identity and credential isolation, network recovery, revocation, repeated runs, and provider-policy review remain pre-alpha or promotion gates. Lift uses one provider-blind workload runner; Codex is merely the first user-owned recipe executed by it.
 
 ## The first magical loop
 
@@ -46,6 +46,7 @@ Lift initially moves one coding workspace. It is not:
 ## Documentation
 
 - [docs/README.md](docs/README.md) - documentation map and recommended reading paths
+- [docs/CURRENT_STATE.md](docs/CURRENT_STATE.md) - canonical current implementation, evidence, lessons, limitations, and next slice
 - [PRD.md](PRD.md) - product requirements and acceptance criteria
 - [docs/CONTEXT.md](docs/CONTEXT.md) - product thesis, principles, and terminology
 - [docs/ICP.md](docs/ICP.md) - first customer, trigger, anti-ICP, and qualification score

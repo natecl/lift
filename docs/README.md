@@ -7,12 +7,13 @@ This directory is the shared product knowledge base for humans and agents buildi
 For a complete introduction, read in this order:
 
 1. [`../README.md`](../README.md) for the product in one page.
-2. [`../PRD.md`](../PRD.md) for requirements, boundaries, and acceptance criteria.
-3. [`CONTEXT.md`](CONTEXT.md) for the product thesis and experience principles.
-4. [`ICP.md`](ICP.md) for the exact first customer and anti-ICP.
-5. [`EXPERIENCE.md`](EXPERIENCE.md) for the Connections, Lift Off, and Land user journey.
-6. [`DECISIONS.md`](DECISIONS.md) before changing product scope or architecture.
-7. [`ROADMAP.md`](ROADMAP.md) for the current evidence gate and next milestone.
+2. [`CURRENT_STATE.md`](CURRENT_STATE.md) for what exists, what passed, what failed, and what comes next.
+3. [`../PRD.md`](../PRD.md) for requirements, boundaries, and acceptance criteria.
+4. [`CONTEXT.md`](CONTEXT.md) for the product thesis and experience principles.
+5. [`ICP.md`](ICP.md) for the exact first customer and anti-ICP.
+6. [`EXPERIENCE.md`](EXPERIENCE.md) for the Connections, Lift Off, and Land user journey.
+7. [`DECISIONS.md`](DECISIONS.md) before changing product scope or architecture.
+8. [`ROADMAP.md`](ROADMAP.md) for the current evidence gate and next milestone.
 
 ## Reading paths
 
@@ -56,6 +57,7 @@ For a complete introduction, read in this order:
 
 ### Understand the opportunity
 
+- [`CURRENT_STATE.md`](CURRENT_STATE.md) is the canonical cross-functional snapshot of the merged implementation, observed evidence, limitations, lessons, and next slice.
 - [`CONTEXT.md`](CONTEXT.md) explains why Lift should exist and what “replace the laptop” means.
 - [`ICP.md`](ICP.md) defines the beachhead customer, triggers, alternatives, anti-ICP, and qualification score.
 - [`EXPERIENCE.md`](EXPERIENCE.md) defines the zero-terminal onboarding, one-button launch, safe-to-close, and Land contract.
@@ -95,15 +97,16 @@ Lift teleports your active coding workspace to a persistent cloud computer so an
 
 ## Current narrow wedge
 
-One user lifts one active coding project from macOS into an isolated persistent Linux workspace, continues Codex through an existing OpenAI interface, and safely reconciles the result back to the laptop. A founder-only spike has observed direct phone-to-Ubuntu-EC2 control and one full stop/start recovery with exact post-restart folder binding, guarded approval observation, proof, and a following restore-tested immutable checkpoint. It is not yet a supported promise because separate provider-service identity and credential isolation, network recovery, revocation, repeated laptop-off evidence, and complete Land remain pending.
+One user lifts one active coding project from macOS into an isolated persistent Linux workspace, continues Codex through an existing OpenAI interface, and safely reconciles the result back to the laptop. A founder-only generated-fixture spike has observed direct phone-to-Ubuntu-EC2 control and one full stop/start recovery with exact post-restart folder binding, guarded approval observation, proof, and a following restore-tested immutable checkpoint. It is not yet a supported promise because reviewable real-workspace capture, separate provider-service identity and credential isolation, network recovery, revocation, repeated laptop-off evidence, the no-terminal journey, and complete Land remain pending.
 
 ## Current phase
 
-Phase 0: direct phone execution, three private-Git cloud checkpoints, and one full EC2 stop/start phone recovery are evidenced. Finish service-identity and credential isolation, network recovery, revocation, conflict-safe Land, the zero-terminal product journey, and repetition before treating the laptop-off promise as supported. See [`ROADMAP.md`](ROADMAP.md).
+Phase 0: the provider path, three private-Git cloud checkpoints, and one full EC2 stop/start phone recovery are evidenced once. The immediate build is conflict-safe Land on the disposable fixture, followed by a reviewable real-workspace capture flow and the first complete real round trip. Service-identity and credential isolation, network recovery, revocation, the zero-terminal journey, and repetition remain promotion gates. See [`CURRENT_STATE.md`](CURRENT_STATE.md) and [`ROADMAP.md`](ROADMAP.md).
 
 ## Knowledge-base maintenance
 
 - New evidence updates [`RESEARCH.md`](RESEARCH.md) or [`VALIDATION.md`](VALIDATION.md).
+- Any change to the actual implementation/evidence boundary also updates [`CURRENT_STATE.md`](CURRENT_STATE.md).
 - A changed product choice updates [`DECISIONS.md`](DECISIONS.md), [`../PRD.md`](../PRD.md), and any affected experience or architecture document.
 - A changed supported surface updates [`COMPATIBILITY.md`](COMPATIBILITY.md), launch copy, and the checklist.
 - A new risk gets an owner and trigger in [`RISK_REGISTER.md`](RISK_REGISTER.md).

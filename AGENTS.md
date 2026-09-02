@@ -7,13 +7,14 @@ This file is the operating context for coding agents working in this repository.
 Before proposing or implementing substantial work, read:
 
 1. `README.md`
-2. `PRD.md`
-3. `docs/CONTEXT.md`
-4. `docs/ICP.md`
-5. `docs/EXPERIENCE.md`
-6. `docs/DECISIONS.md`
-7. `docs/ROADMAP.md`
-8. `docs/SECURITY.md` for anything involving execution, credentials, networking, syncing, or browser state
+2. `docs/CURRENT_STATE.md`
+3. `PRD.md`
+4. `docs/CONTEXT.md`
+5. `docs/ICP.md`
+6. `docs/EXPERIENCE.md`
+7. `docs/DECISIONS.md`
+8. `docs/ROADMAP.md`
+9. `docs/SECURITY.md` for anything involving execution, credentials, networking, syncing, or browser state
 
 Before changing launch scope, pricing, analytics, support, or positioning, also read the corresponding document linked from `docs/README.md`.
 

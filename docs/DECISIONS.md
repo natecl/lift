@@ -1,5 +1,7 @@
 # Product and Architecture Decisions
 
+Last updated: 2026-09-02
+
 This log records decisions already made so future work does not reopen them accidentally. Change a decision when evidence warrants it, and record why.
 
 ## Accepted decisions
@@ -84,9 +86,9 @@ Reason: The first recipe should match the founder's real workflow without coupli
 
 ### D-014: Codex laptop-off support is gated by a spike
 
-Decision: Treat direct ChatGPT-mobile-to-Ubuntu Codex control as experimental until a real EC2 pairing and reconnection test passes. Keep the documented ChatGPT Desktop-to-SSH path as a fallback, but do not call that fallback laptop-independent.
+Decision: The real EC2 pairing, laptop-off, stop/start, fresh phone-task, guarded approval/proof, following checkpoint, and restore test have now passed once. Keep direct ChatGPT-mobile-to-Ubuntu Codex control classified as Experimental until network recovery, revocation, repeated independent runs, provider-policy review, provider-service credential isolation, and complete Land pass. Keep the documented ChatGPT Desktop-to-SSH path as a fallback, but do not call that fallback laptop-independent.
 
-Reason: Official OpenAI documentation currently establishes mobile pairing through an awake Mac or Windows desktop host. Current CLI commands suggest a headless path, but the supported production behavior is not yet documented.
+Reason: Single-run feasibility answers whether the path can work, not whether OpenAI supports the topology or Lift can operate it safely and reliably for users. Official OpenAI documentation still establishes mobile pairing through an awake Mac or Windows desktop host, while the direct Linux commands remain experimental.
 
 ### D-015: Agent neutrality is one user-controlled remote workload runner
 
@@ -156,7 +158,7 @@ Reason: Independent booleans can be assembled from different attempts, and a sta
 
 ### D-026: Runtime actions bind local state to live CloudFormation resources
 
-Decision: Before operating on a deployed workspace, validate the persisted run, AWS identity, stack identity, outputs, and canonical paths, then re-read the live CloudFormation stack. Require the exact stored stack ID and name, a completed safe status, the expected immutable parameters, byte-for-byte matching outputs, and exact physical bindings for the EC2 instance, EBS volume, and S3 transfer bucket. Revalidate the selected Ubuntu AMI against Canonical ownership, availability, and architecture rather than trusting a cached ID.
+Decision: Before operating on a deployed workspace, validate the persisted run, AWS identity, stack identity, outputs, and canonical paths, then re-read the live CloudFormation stack. Bind the operator to the exact account, principal ARN, and immutable STS user ID so recreating a same-named IAM user cannot inherit authority. Require the exact stored stack ID and name, a completed safe status, the expected immutable parameters, byte-for-byte matching outputs, and exact physical bindings for the EC2 instance, EBS volume, and S3 transfer bucket. Revalidate the selected Ubuntu AMI against Canonical ownership, availability, and architecture rather than trusting a cached ID. Run AWS subprocesses with a sanitized inherited environment that removes ambient credential, profile, region, endpoint, CA, Botocore, and metadata-endpoint overrides and explicitly ignores configured endpoint URLs; pass the selected profile and region as explicit CLI arguments.
 
 Reason: Locally persisted identifiers are routing hints, not authority. A stale, edited, cross-account, or partially replaced state file must not redirect lifecycle commands, proof collection, or checkpoint writes to unrelated infrastructure.
 
@@ -174,6 +176,18 @@ Decision: Model the tested Codex mobile `Add new folder` path as `folder-bound-p
 
 Reason: The live mobile task created after `Add new folder` used the intended EBS-backed `cwd` but no experimental project assignment. Treating the registered server project ID as the task's project ID caused a false rejection. Treating `cwd` alone as sufficient would be too permissive, so the compatibility path is explicit, versioned, and fail-closed around the complete observed task and command envelope.
 
+### D-029: Complete Land before dashboard polish or a second provider
+
+Decision: The next implementation slice is the conflict-safe Land path on the generated disposable fixture: freeze cloud writers, create and restore-test the final cloud checkpoint, capture returning local state privately, merge in an isolated Lift worktree, transactionally apply a clean result or preserve every conflicting side, acknowledge locally, return the ownership lease, and retain the complete session ledger.
+
+Reason: The provider path has passed its single-run feasibility gate, while the product promise is still only half a loop. Completing clean return and deliberate conflict preservation removes the largest remaining work-preservation risk and tests the product's differentiated value more directly than adding UI polish, another provider, or broader infrastructure.
+
+### D-030: Phase 0 capture remains fixture-only until explicit manifest review exists
+
+Decision: The current capture harness must refuse any workspace that lacks the exact generated disposable-fixture marker before it creates a private ledger. It may include only the fixture's known untracked content and the one ignored path declared by that marker. Do not relax this guard to test a real repository. Replace it with a separately reviewed production discovery and explicit include/exclude manifest flow.
+
+Reason: Discovery is not permission to transfer. The spike's fixed fixture proves mechanics without creating a path that could silently upload secrets, arbitrary ignored files, or a user's real workspace before the product has a reviewable transfer boundary.
+
 ## Pending decisions
 
 ### P-001: Hosted versus BYO cloud first
@@ -182,7 +196,7 @@ Default hypothesis: Lift-hosted infrastructure for the fastest consumer setup.
 
 Evidence needed: trust objections, compute economics, and willingness to connect an AWS account.
 
-### P-002: Codex headless remote-control viability
+### P-002: Codex direct Remote promotion
 
 Updated hypothesis: the current experimental CLI daemon and provider pairing URL can connect ChatGPT mobile directly to a persistent Linux workspace. A real Ubuntu EC2 run now passes direct pairing and phone task execution against the exact EBS-backed workspace. A fresh challenge issued before the founder shut down the Mac was satisfied from the phone, and later Mac reboot timestamps strongly corroborate that the computer was off; this remains human-attested evidence, not cryptographic device attestation.
 

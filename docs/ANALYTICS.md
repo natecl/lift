@@ -1,6 +1,6 @@
 # Analytics and Learning System
 
-Last updated: 2026-08-31
+Last updated: 2026-09-02
 
 ## Measurement principle
 
@@ -23,6 +23,8 @@ It occurs when one workspace:
 Track weekly acknowledged closed-laptop loops and the number of users completing at least one.
 
 If provider telemetry cannot prove phone activity, use the strongest available provider readiness signal plus an explicit lightweight user confirmation. Never infer “laptop closed” merely from a disconnected socket.
+
+The founder Phase 0 run is technical feasibility evidence, not an activation event: it used a generated fixture, manual terminal steps, and no complete Land. No user is activated until the full acknowledged loop above passes. See [`CURRENT_STATE.md`](CURRENT_STATE.md).
 
 ## Activation definition
 
@@ -72,6 +74,8 @@ activated
 | `workspace_deleted` | workspace_id, retention outcome | User requested deletion. |
 | `deposit_paid` | user_id, offer version | Behavioral willingness-to-pay evidence. |
 | `subscription_started` | user_id, package version | Paid conversion. |
+
+For `safe_to_close_reached` and `provider_continuation_confirmed`, record nonsecret enumerated evidence classes rather than a generic success boolean. The current experimental classes distinguish server project registration from `folder-bound-project-unassigned`, a guarded approval inference from a provider-attributed decision, and a restore-tested following checkpoint from a merely created checkpoint. Also record the verdict validity interval. Never emit an analytics property that implies a specific approval decision, responder identity, controller project assignment, or cryptographic laptop-off attestation when the underlying protocol did not provide it.
 
 ## Privacy rules
 

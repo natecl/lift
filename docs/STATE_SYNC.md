@@ -1,6 +1,12 @@
 # Workspace Handoff and Return Sync
 
-Last updated: 2026-08-31
+Last updated: 2026-09-02
+
+## Current implementation status
+
+This document is the authoritative Land design, not a description of a finished implementation. The Phase 0 harness has proven an additive private checkpoint chain and exact restore for three cloud revisions on a generated disposable fixture. A historical local precursor also performed one clean fast-forward on a disposable repository. The complete `B/L/C` comparison, isolated return merge, journaled local application, ownership acknowledgement, offline completion, and deliberate conflict preservation are not implemented.
+
+Land is the next highest-value slice. It should first pass an unchanged-local clean return and a same-file conflict on the marker-gated disposable fixture before Lift captures any real user repository. See [`CURRENT_STATE.md`](CURRENT_STATE.md) for the ordered implementation plan and current evidence boundary.
 
 ## Product contract
 

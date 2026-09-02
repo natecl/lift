@@ -18,6 +18,8 @@ prove provider path
 
 Do not enter the next phase because the calendar says so. Enter when the current phase's exit criteria are true.
 
+The canonical implementation and evidence snapshot is [`CURRENT_STATE.md`](CURRENT_STATE.md).
+
 ## Phase 0: Feasibility gates
 
 ### Objective
@@ -37,7 +39,36 @@ Remove the two technical unknowns capable of invalidating the first promise.
 
 ### Current evidence
 
-The founder EC2 spike now passes the provider-path portion once: direct phone control, strongly corroborated laptop-off execution, EC2 stop/start recovery, exact post-restart folder binding, guarded native approval observation, versioned checkpointing, exact S3 restore, and a fresh `safeToClose: true` evaluation. Phase 0 is still open because the complete real-project Land loop, deliberate clean/conflicted reconciliation, zero-terminal product journey, provider-service identity isolation, network recovery, and revocation remain unproven.
+The founder EC2 spike now passes the provider-path portion once: direct phone control, strongly corroborated laptop-off execution, EC2 stop/start recovery, exact post-restart folder binding, guarded native approval observation, versioned checkpointing, exact S3 restore, and a fresh `safeToClose: true` evaluation. Phase 0 is still open because its generated-fixture capture/return work has not yet produced the required clean and deliberate-conflict merge evidence without touching the user's Git state. The zero-terminal product journey, provider-service identity isolation, network recovery, revocation, provider-policy review, and repetition remain separate Phase 1, pre-alpha, or compatibility-promotion gates.
+
+| Phase 0 gate | Current state |
+| --- | --- |
+| Direct provider-native phone path | Passed once on the founder's existing phone client; still Experimental |
+| Laptop-off evidence | Strongly corroborated once; not cryptographic device attestation |
+| EC2/EBS stop/start recovery | Passed once |
+| Post-restart exact folder and runtime binding | Passed once with `projectId: null`; controller project visibility remains unknown |
+| Guarded approval/proof turn | Passed once; selected decision and responder identity remain unavailable |
+| Immutable checkpoint and exact restore | Three checkpoints passed exact-version restore |
+| Phase 0 private capture and return merge | Capture is fixture-marker-only; clean and conflict return are not implemented |
+| Real-workspace capture and complete product Land | Phase 1 target; not implemented |
+| No-terminal customer journey | Phase 1 target; not implemented |
+| Provider-service and credential isolation | Pre-alpha blocker; not implemented |
+| Network recovery, revoke, provider-policy review, repetition | Compatibility/promotion gates; not yet tested |
+
+### Immediate next slice
+
+Implement Land on the disposable fixture in this order:
+
+1. freeze cloud writers and enter `LANDING`;
+2. create and restore-test the final immutable cloud checkpoint `C`;
+3. capture returning local state `L` against baseline `B` without touching the user's Git state;
+4. merge `C` into `L` in an isolated Lift-private worktree;
+5. transactionally apply a verified clean result or preserve local, cloud, and proposed merge states for every conflict;
+6. verify the final local manifest, record local acknowledgement, and return the lease to `LOCAL_PRIMARY`;
+7. retain baseline, checkpoint chain, final cloud state, local return, merge result, and receipt even after a clean merge;
+8. optionally stop compute only after the final cloud state is independently durable.
+
+The first two acceptance cases are an unchanged-local clean return and a deliberate same-file conflict that leaves the original local folder untouched.
 
 ### Evidence recorded on 2026-09-01
 

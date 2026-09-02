@@ -1,6 +1,17 @@
 # Prototype and Launch Plan
 
+Last updated: 2026-09-02
+
 This document is the tactical first build and alpha plan. Phase gates are defined in [`ROADMAP.md`](ROADMAP.md); final release readiness is defined in [`LAUNCH_CHECKLIST.md`](LAUNCH_CHECKLIST.md).
+
+## Current execution status
+
+- Day 1's direct provider path, one EC2/EBS stop/start, fresh exact-folder phone task, guarded approval/proof, and following restore-tested checkpoint have passed once as founder-only evidence.
+- Day 2 is not complete: capture is restricted to a generated fixture, and there is no signed helper, dashboard, reviewable real-workspace manifest, or zero-terminal flow.
+- Day 3's underlying runtime driver, provider-blind runner, Codex recipe, and fail-closed safe-to-close evidence exist in the harness; the one-button product surface does not.
+- Day 4 has immutable cloud checkpoints and stop/start durability, but the complete clean/conflicted Land path and local acknowledgement do not exist.
+
+The immediate build is Land on the disposable fixture, beginning with an unchanged-local clean return and a deliberate same-file conflict. See [`CURRENT_STATE.md`](CURRENT_STATE.md).
 
 ## Launch recommendation
 
@@ -41,7 +52,7 @@ End-of-day proof: without a terminal, an uncommitted local project appears corre
 - Wire one `Lift Off` button to workspace transfer, runtime wake, native remote startup, readiness verification, and the safe-to-close state.
 - Generate a provider-neutral continuation package for semantic restart.
 
-End-of-day proof: one `Lift Off` click moves the workspace, starts the supported Codex connection mode, reaches a verified safe-to-close state, and Codex changes cloud files.
+End-of-day proof: one `Lift Off` click moves the workspace, starts the currently Experimental Codex connection recipe, reaches a verified safe-to-close state, and Codex changes cloud files.
 
 ### Day 4: Make state safe and recoverable
 
@@ -82,7 +93,7 @@ Do not shortcut isolation, secret handling, work preservation, or the distinctio
 8. Reopen the laptop and show the verified cloud result appearing automatically in the local workspace.
 9. Optionally wake the workspace again to demonstrate durable files and semantic restart.
 
-The demo should take less than three minutes excluding provisioning and agent generation time. If the direct pairing spike has not passed, demo the desktop-to-SSH fallback but do not show or describe it as laptop-independent.
+The demo should take less than three minutes excluding provisioning and agent generation time. Direct pairing has a single founder feasibility pass, but public laptop-independent demo copy still waits for the compatibility promotion gates. If the desktop-to-SSH fallback is shown, do not describe it as laptop-independent.
 
 ## Landing-page outline
 

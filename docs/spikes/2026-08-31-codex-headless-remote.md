@@ -5,6 +5,8 @@ Last updated: 2026-09-02
 
 Status: single-run founder feasibility pass, not launch-ready. Direct ChatGPT phone control works against both the local Ubuntu precursor and a real Ubuntu EC2 workspace on encrypted EBS. The founder's laptop-off run is strongly corroborated by a fresh challenge/proof exchange and Mac reboot timestamps, but it is not cryptographic device attestation. One EC2 stop/start recovered the exact workspace, earlier checkpoints and proof files, the provider-neutral runner, and the same Codex Remote environment. After server-side native-project reconstruction, a brand-new phone task bound to the exact EBS folder, completed a live observed approval-and-proof turn, and produced checkpoint `0003`, which passed exact-version S3 restore verification. Fresh live evaluation reported every safe-to-close gate true. Network recovery, revocation, repeated independently observed laptop-off runs, complete Land, provider-service isolation, and production-support policy remain pending.
 
+For the cross-functional current snapshot and next slice, see [`../CURRENT_STATE.md`](../CURRENT_STATE.md). This document remains the detailed experiment record.
+
 The local-to-cloud capture in this harness is deliberately fixture-only: it rejects any workspace without the exact generated disposable marker before creating its private ledger. A production manifest-review and explicit untracked/ignored-file selection flow is not implemented by this spike.
 
 The disposable bootstrap also downloads the official AWS CLI archive and Codex installer without pinning the installer bytes to reviewed signatures or digests. Resulting versions and runtime files are checked, but alpha reuse requires a signed/content-addressed image or cryptographic verification before root execution.
@@ -251,10 +253,11 @@ Official reference:
 - Lift must pin and continuously retest compatible provider versions because this surface is not yet established in the published production workflow.
 - Launch copy must continue to distinguish observed behavior from officially documented support.
 - Do not launch Codex direct-to-headless-Linux as a laptop-off promise until network recovery, repeated independently observed laptop-off runs, revocation, complete Land, provider-service isolation, and provider-policy tests pass. Direct phone execution and full EC2 stop/start recovery are now observed once; promotion remains gated.
+- The current capture path must remain marker-gated to the generated disposable fixture. The next implementation slice is complete clean and conflicted Land on that fixture, followed by an explicit real-workspace manifest-review flow.
 
 ## Exit record
 
-Current local-precursor record:
+Historical local-precursor record:
 
 - phone app and version: ChatGPT on iPhone 16 Pro; exact app build not surfaced during the mirrored test
 - account/feature eligibility: Remote available; visible Add Connection/manual-code UI absent; provider pairing URL accepted; Linux server appeared as a separate Remote connection
@@ -264,10 +267,10 @@ Current local-precursor record:
 - Git/session result: cloud commit `dd27755`; disposable original cleanly fast-forwarded from `7f14712`; both histories retained
 - laptop-off result: pending; the data path was direct phone-to-Linux, but iPhone Mirroring kept the Mac awake for test operation
 - daemon restart result: partial pass; persistent auth/home reused after App Server restart and version update, but a fresh pairing/unlock flow was exercised
-- network interruption result:
-- EC2 stop/start result:
+- network interruption result: not tested
+- EC2 stop/start result: not applicable to the local container precursor
 - provider-state persistence result: Linux auth, sessions, and workspace survived initiating-shell exit and App Server restart on the isolated named home volume; EC2/EBS not tested
-- revocation result:
+- revocation result: not tested
 - final verdict: local direct pairing, task execution, approval, Git checkpoint, and clean return pass; experimental surface remains version- and client-dependent
 - product decision and fallback: proceed to the isolated EC2 lifecycle spike, but do not claim laptop-off support until the remaining promotion tests pass
 
@@ -282,6 +285,7 @@ Current real-EC2 record:
 - post-restart native phone result: pass once; a brand-new task bound to the exact EBS folder, completed the exact two-command proof, and entered restore-tested checkpoint `0003`
 - post-restart server-side remediation: pass; pinned App Server connector registered and read back the exact native `lift` project, exact trust root, connected Remote state, and paired-controller presence while preserving the narrow write boundary; controller-side project visibility remains explicitly unknown because the phone picker showed only `Chat` and `Add new folder`
 - approval observer result: deployed as schema v8 and live-proven once with root-owned service/readiness/evidence and agreeing independent historical verification; selected decision and responder identity remain guarded inference rather than directly exposed protocol evidence
+- AWS binding hardening result: post-hardening live status passed exact account, non-root ARN, immutable STS user ID, live stack/resource/AMI binding, and ambient AWS endpoint/configuration scrubbing while still deriving a short-lived `safeToClose: true`
 - network recovery result: pending
 - revocation result: pending
 - local Land and deliberate conflict result: pending

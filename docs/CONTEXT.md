@@ -1,5 +1,7 @@
 # Product Context
 
+Last updated: 2026-09-02
+
 ## Origin
 
 Lift began with a simple desire: if a cloud computer could run a product and school workflows continuously, the laptop could become an optional command surface rather than the place where work must live.
@@ -13,6 +15,12 @@ Cloud development environments, VPSs, SSH, remote desktop, browser IDEs, and clo
 The laptop becomes one optional interface to a persistent personal cloud computer. Files, agents, browsers, tasks, and ongoing work remain available regardless of which physical device is open.
 
 The long-term vision can expand from a personal computer to a shared company computer, but the consumer experience comes first.
+
+## Where the product stands now
+
+The provider half of the first promise has passed once in a founder-only feasibility harness. A generated disposable workspace ran on Ubuntu EC2 with encrypted EBS, accepted a direct task from the founder's existing phone application, survived one EC2 stop/start, produced a guarded approval/proof turn, and entered a third immutable checkpoint that restored exactly from versioned S3 objects. A fresh live evaluation then found every implemented safe-to-close gate true for its 30-second validity window.
+
+That is meaningful technical evidence, not a customer product. The harness still requires founder-operated terminal steps, captures only an exact generated fixture, shares one Unix identity between provider state and the untrusted workload, and has no complete Land implementation. The immediate product move is to finish the round trip—clean return and conflict preservation—before polishing a dashboard or adding another provider. The exact boundary is maintained in [`CURRENT_STATE.md`](CURRENT_STATE.md).
 
 ## Initial wedge
 

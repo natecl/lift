@@ -1,6 +1,6 @@
 # Go-to-Market and Positioning
 
-Last updated: 2026-08-31
+Last updated: 2026-09-02
 
 ## Go-to-market objective
 
@@ -9,6 +9,8 @@ Find agent-heavy solo builders at the exact moment their laptop is blocking ongo
 Lift should not launch as a broad “cloud computer for everyone.” The initial category entry is:
 
 > Workspace handoff for coding agents.
+
+The current repository has one founder-only provider-path feasibility pass on a generated fixture, not a complete product loop or market validation. Until real-workspace capture, complete Land, isolation, recovery, and no-terminal promotion gates pass, the laptop-off language below is target positioning for interviews and prototypes—not a supported public product claim. See [`CURRENT_STATE.md`](CURRENT_STATE.md).
 
 ## Positioning statement
 
