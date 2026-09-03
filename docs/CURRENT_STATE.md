@@ -4,7 +4,7 @@ Last verified: 2026-09-02
 
 Repository baseline before the Land change set: merge commit `45eef0e2f668dceba84a1c0e0bd1404ce5305a95`, which includes the Phase 0 provider-evidence merge `b61bb9b42e3a36809d7947c1055e524da55954b5`
 Land implementation baseline: the crash-safe fixture core begins at commit `ccceea7`; this change set adds the live controller, guest, tests, evidence, and knowledge-base reconciliation
-Product phase: provider-path feasibility and the generated-fixture Land core—one clean return plus one deliberate conflict—passed live once each; the real-workspace product loop is not yet complete
+Product phase: provider-path feasibility and the generated-fixture Land core—one clean return plus one deliberate conflict—passed live once each; a reviewed real-workspace policy foundation now passes locally, but generic capture, upload, and the real-workspace product loop are not yet implemented
 
 This is the canonical short-to-medium-term memory for Lift. It answers four questions: what exists, what was actually observed, what was learned, and what should be built next. Detailed protocol evidence remains in [`spikes/2026-08-31-codex-headless-remote.md`](spikes/2026-08-31-codex-headless-remote.md).
 
@@ -14,8 +14,8 @@ This is the canonical short-to-medium-term memory for Lift. It answers four ques
 - The first wedge remains one active Mac coding workspace moved to one persistent Linux cloud workspace, controlled from the provider application the user already has. The complete target includes launching a completely new provider-native task from the phone after the laptop is offline, not only continuing a process started locally.
 - The future workspace may originate locally, from GitHub, or empty; support shared, isolated, and read-only multi-agent tasks; add internet/browser/computer capabilities; and later add small-team participation. None of those broader capabilities is implemented by the current Phase 0 harness.
 - The Codex-first provider path has passed once on a real Ubuntu EC2 instance with encrypted EBS: direct phone control, strongly corroborated laptop-off work, EC2 stop/start recovery, exact post-restart folder binding, a guarded approval/proof turn, an immutable following checkpoint, exact-version S3 restore, and a fresh `safeToClose: true` evaluation.
-- The provider spike and its earlier evidence were merged through [PR #3](https://github.com/natecl/lift/pull/3), and the earlier consolidated product context was merged through [PR #4](https://github.com/natecl/lift/pull/4). The Land change set builds on crash-safe fixture-core commit `ccceea7` and includes the live controller/guest integration plus the current knowledge-base reconciliation. Its verification baseline is 200 passing tests plus passing Ruff, Python compilation, and diff checks. GitHub had no hosted status checks configured for the earlier PRs.
-- The validated capture path is deliberately restricted to a generated disposable fixture. It is not yet safe or usable for arbitrary real user workspaces because the production manifest-review flow does not exist.
+- The provider spike and its earlier evidence were merged through [PR #3](https://github.com/natecl/lift/pull/3), and the earlier consolidated product context was merged through [PR #4](https://github.com/natecl/lift/pull/4). The Land change set builds on crash-safe fixture-core commit `ccceea7` and includes the live controller/guest integration plus the current knowledge-base reconciliation. The current complete Python verification baseline is 277 passing tests plus passing Ruff, Python compilation, and diff checks. The separate local real-workspace policy module accounts for 77 focused tests. GitHub had no hosted status checks configured for the earlier PRs.
+- The validated live capture path is still deliberately restricted to a generated disposable fixture. A new local-only foundation can discover one real Git worktree, bind exact per-path approval, compile and strictly decode a portable policy, classify paths in a caller-supplied candidate under a trusted in-process assumption, and revalidate a return plan against that same candidate. It does not authenticate scanner provenance or prove a supplied candidate is complete, upload or reconstruct a real project, or wire policy into baseline `B`, guest checkpoints, final `C`, `L`, merge, receipt, or acknowledgement.
 - There is no product dashboard or signed desktop helper yet. Authentication, pairing, and proof still required founder-operated terminal steps.
 - The fixture Land core has passed both outcomes once on live EC2/EBS/S3. The clean run froze one restore-tested final `C`, imported and applied it locally, durably acknowledged it, returned ownership, and stopped compute. A separate fresh conflict run preserved exact `B/L/C`, left the original local and Git state untouched, retained `LANDING`, fenced cloud writers, and changed nothing on retry. Automatic offline-helper continuation, conflict resolution, repeated runs, and additional interruption phases remain pending.
 - Codex direct Remote remains experimental and founder-only. One passing run is evidence of feasibility, not provider support, repeatability, external-alpha safety, or market demand.
@@ -38,6 +38,21 @@ The current spike tree under [`spikes/ec2-laptop-off/`](../spikes/ec2-laptop-off
 - download exact object versions into a fresh location and verify bundle hashes, manifest hashes, Git commit, tree, retained history refs, file count, and evidence bytes;
 - bind persisted local routing state back to the exact live CloudFormation stack, resource types, physical resource IDs, AMI owner and architecture, AWS account, principal ARN, and immutable STS user ID before acting;
 - derive a short-lived safe-to-close verdict only after every required durability, runtime, provider, phone, approval, checkpoint, and auto-stop gate passes.
+
+### Local reviewed real-workspace policy foundation
+
+[`workspace_policy.py`](../spikes/ec2-laptop-off/workspace_policy.py) now implements the local policy primitive that must precede any real-project transfer:
+
+- `discover_workspace()` inspects exactly one supported physical Git worktree without changing its branch, refs, index, or working tree;
+- `CandidateManifestV1` classifies canonical paths across `tracked`, `staged`, `dirty`, `untracked`, `ignored`, `sensitive`, `hard-excluded`, and `unsupported`, with content identities only for transferable entries;
+- `ApprovalV1` binds one `include` or `exclude` decision for every candidate path to the exact candidate plus run, workspace, and helper scope;
+- `EffectivePolicyV1` contains only approved initial entries plus the immutable `lift-return-v1` rules, and its untrusted dictionary decoder is strict;
+- `ReturnPlanV1` distinguishes the exact initial-transfer entries from later rule-based return classification, so a supplied ordinary agent-created file is allowed while a supplied new ignored or sensitive file requires review and supplied unsafe or unsupported state blocks;
+- plan validation reclassifies the caller-supplied snapshot instead of accepting a newly self-hashed decision list, but does not prove that snapshot came from the scanner or includes every physical path.
+
+The focused suite in [`test_workspace_policy.py`](../spikes/ec2-laptop-off/tests/test_workspace_policy.py) passes 77 tests covering Git and filesystem classification, exact approval, hard exclusions including credential and browser stores, full-stream secret-content detection, database and credential filename classification, configured, default, and custom-XDG account-global-ignore copying, binding, and ancestor-swap rejection, trusted Git execution, OS-derived home and protected-account-root protection, raw physical-content/index comparison without `git diff`, drift, path and size bounds, mount-table failure and identifiable mounts, root-swap rejection, safe-link dependency closure, partial/promisor/alternate object-store rejection, nested repositories including bare repositories, force-added ignored files, strict canonical policy decoding, new-file return behavior, tracked tombstones, and forged-plan rejection.
+
+This module is deliberately free of transfer, ledger, cloud, checkpoint, and Land dependencies. Its candidate and approval remain local; only the compiled effective policy is intended to cross the future trust boundary. The generated fixture continues to use its existing marker adapter, and no live evidence yet exercises the generic policy. See [`WORKSPACE_POLICY.md`](WORKSPACE_POLICY.md) for the exact schema and integration boundary.
 
 ### Provider-neutral execution boundary
 
@@ -173,6 +188,15 @@ Any missing, stale, malformed, or contradictory fact blocks the promise.
 - The approval observer runs as a hardened root-owned transient service from checksum-verified root-owned files, uses only the local Unix socket, and cannot answer provider requests.
 - Provider connector state stays outside the project and current ordinary checkpoints. The complete live Land lifecycle must preserve that exclusion.
 
+### Implemented locally but not in the founder harness
+
+- A real-workspace candidate can be generated without transferring content and can be invalidated by a fresh rescan when workspace or Git identity changes.
+- Every candidate path must receive an exact scoped decision; hard-excluded or unsupported state cannot be approved, and excluded metadata does not enter the portable policy.
+- The initial approved entry set is separate from immutable return rules. In trusted local classification, supplied new ordinary paths can be selected for return, while supplied new ignored or sensitive paths require review and supplied prohibited or unsupported paths block.
+- The portable effective-policy decoder rejects unknown or missing fields, invalid enums and entries, normalization collisions, and invalid bindings or hashes.
+
+These controls are local foundation evidence only. Candidate self-hashes prove internal integrity, not scanner provenance or path-set completeness. They do not authorize an upload and are not yet enforced by generic B, guest reconstruction, checkpoints, Land, or receipts.
+
 ### Still blocking external alpha
 
 - The Codex provider daemon, reusable provider credentials, and arbitrary workspace workload still share the `lift` Unix identity. A compromised workspace can potentially reach writable provider state. They need a separate provider-service identity or equivalently narrow credential broker.
@@ -200,31 +224,33 @@ Implemented:
 - fixture-only local `B/L/C` reconciliation, isolated merge, transactional clean apply, safe rollback, structured conflict preservation, immutable local session refs, and a Git-backed receipt.
 - one clean live founder-fixture Land transaction through writer freeze, exact final-checkpoint restore/import, local acknowledgement, lease return, and compute stop.
 - one deliberate live founder-fixture conflict through writer freeze, exact final-checkpoint restore/import, untouched-local preservation, isolated `B/L/C` stages, retained `LANDING`, writer fencing, and idempotent retry.
+- local-only real-workspace discovery, per-path approval, strict effective-policy serialization, trusted in-process return classification, and plan revalidation, with 77 focused passing tests.
 
 Not implemented:
 
 - signed desktop helper;
 - dashboard, Connections tab, or Workspaces tab;
 - one-click provider login and pairing;
-- arbitrary real-workspace discovery and reviewable transfer manifest;
+- policy-bound generic `B` capture, upload, guest reconstruction, checkpoints, and Land for an arbitrary reviewed real workspace;
+- customer-facing real-workspace review and approval UI;
 - secrets broker and separate provider-service identity;
 - normal product error recovery and revocation controls;
 - automatic offline-helper continuation, conflict-resolution UI, repeated clean/conflict runs, and additional interruption phases;
 - design-partner onboarding, billing, analytics, or production operations.
 
-## Next highest-value slice: explicit real-workspace manifest review
+## Next highest-value slice: bind the reviewed policy to generic B and reconstruction
 
-The next build should replace the marker-only capture boundary with the smallest explicit, reviewable real-workspace manifest flow, without weakening the fixture guard prematurely. Reliability evidence should continue with fresh clean, conflict, and interruption runs.
+The local candidate -> approval -> effective-policy -> return-plan foundation exists. The next build should carry that policy through the smallest generic baseline `B` and reconstruction path beside the unchanged fixture adapter. It must transfer only the approved initial entries, bind every generic artifact to the policy, and avoid importing arbitrary user Git history. Reliability evidence should continue with fresh clean, conflict, and interruption fixture runs.
 
 ### Thin vertical scope
 
-1. Separate discovery from transfer permission and generate a versioned candidate manifest for tracked, dirty, staged, untracked, ignored, sensitive, and excluded paths.
-2. Require explicit review for ignored or sensitive content; keep credentials, hard exclusions, and paths outside the selected workspace default-deny.
-3. Bind the approved include/exclude decision to baseline `B`, content hashes, helper/runtime versions, and the later cloud and Land ledgers.
-4. Exercise the reviewed flow first on one noncritical real Git workspace without moving its branch, refs, real index, or working tree during capture.
-5. Repeat the clean and conflicted live fixture transactions from additional fresh sessions, preserving both sides and the writer fence whenever review is required.
-6. Interrupt fresh runs after freeze, after durable `C`, during import/application, and after acknowledgement; verify stable recovery identities at each retry.
-7. Implement and test the separate product orchestration for a Land request made while the original helper is offline and automatic continuation when it reconnects.
+1. Add a generic capture entry point beside the marker-only fixture path; validate one freshly approved `EffectivePolicyV1` and copy only its exact `initialTransferEntries`.
+2. Construct a policy-bound synthetic root `B` with a private index and without fetching or importing user refs, reflogs, `HEAD` ancestry, or other historical objects.
+3. Add mutually exclusive generic session and manifest schemas carrying the complete policy and `policySha256`; fixture schema and `fixturePolicy` remain unchanged.
+4. Reconstruct only the policy-selected B tree and validate the policy, manifest, commit trailer, root, and entry identities before publishing guest state.
+5. Prove locally or in an isolated guest test that one noncritical real workspace reconstructs exactly, no excluded byte or arbitrary historical object transfers, and the user's branch, refs, real index, and working tree remain unchanged.
+6. Then wire fresh rule-based classification into cloud checkpoints and Land so a safe cloud-created file is not lost merely because it was absent from the initial allowlist.
+7. In parallel, repeat clean/conflicted fixture runs, exercise interruption boundaries, and implement offline-helper continuation without conflating that evidence with real-workspace support.
 
 ### Local acceptance tests now passing
 
@@ -247,7 +273,7 @@ Additional passing coverage includes tampered-journal rejection, replacement int
 - one explicitly reviewed noncritical real workspace completes the local -> cloud -> phone -> local loop;
 - the supported journey completes without founder terminal intervention.
 
-The marker-only capture guard remains in force until the explicit manifest-review boundary is implemented and inspected.
+The marker-only live capture guard remains in force until policy-bound generic B, reconstruction, checkpoint, and Land integration is implemented and inspected. The local policy module alone is not authorization to send a real workspace through the fixture command.
 
 ## Product and architecture truths to preserve
 
@@ -290,9 +316,12 @@ The founder harness is intentionally bound to one explicit non-root Lift AWS ide
 - [`EXPERIENCE.md`](EXPERIENCE.md): product-safe-to-close and Land contracts
 - [`SECURITY.md`](SECURITY.md): threat model, implemented controls, and promotion gates
 - [`STATE_SYNC.md`](STATE_SYNC.md): authoritative Land and session-ledger algorithm
+- [`WORKSPACE_POLICY.md`](WORKSPACE_POLICY.md): exact local policy schemas and staged generic integration contract
 - [`ROADMAP.md`](ROADMAP.md): phase gates and immediate sequencing
 - [`../spikes/ec2-laptop-off/spike.py`](../spikes/ec2-laptop-off/spike.py): local orchestrator and evidence controller
 - [`../spikes/ec2-laptop-off/workspace.py`](../spikes/ec2-laptop-off/workspace.py): fixture capture boundary
+- [`../spikes/ec2-laptop-off/workspace_policy.py`](../spikes/ec2-laptop-off/workspace_policy.py): local-only reviewed real-workspace policy foundation
+- [`../spikes/ec2-laptop-off/tests/test_workspace_policy.py`](../spikes/ec2-laptop-off/tests/test_workspace_policy.py): focused policy tests
 - [`../spikes/ec2-laptop-off/land.py`](../spikes/ec2-laptop-off/land.py): fixture-only local reconciliation and transactional apply core
 - [`../spikes/ec2-laptop-off/live_land.py`](../spikes/ec2-laptop-off/live_land.py): durable controller-side live Land state machine
 - [`../spikes/ec2-laptop-off/guest/landing.py`](../spikes/ec2-laptop-off/guest/landing.py): guest writer fence, final checkpoint, and acknowledgement protocol

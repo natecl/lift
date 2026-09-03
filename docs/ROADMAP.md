@@ -55,13 +55,14 @@ Remove the two technical unknowns capable of invalidating the first promise.
 - test direct headless phone pairing, laptop disconnect, daemon reconnect, and VM restart;
 - separately validate the documented desktop-to-SSH path without calling it laptop-independent;
 - capture a dirty local repository into a Lift-private synthetic baseline commit;
+- discover and explicitly approve a real workspace locally before any generic transfer;
 - produce cloud and returning-local commits and perform an isolated three-way merge;
 - verify that the user's branch, refs, real index, and working tree remain untouched during capture;
 - test clean and deliberate conflict returns.
 
 ### Current evidence
 
-The founder EC2 spike now passes the provider-path portion once: direct phone control, strongly corroborated laptop-off execution, EC2 stop/start recovery, exact post-restart folder binding, guarded native approval observation, versioned checkpointing, exact S3 restore, and a fresh `safeToClose: true` evaluation. On 2026-09-02, generated fixtures also passed both live Land outcomes once: the clean run completed the EBS writer fence, immutable final `C`, exact-version restore/import, local application, durable two-sided acknowledgement, ownership return, and post-ack compute stop; a separate fresh same-file conflict run restored its exact final `C`, returned `NEEDS_REVIEW`, preserved the untouched local workspace and exact private `B/L/C` stages, retained `LANDING`, fenced cloud writers, omitted acknowledgement and cleanup, and was byte-stable on retry. The full local suite passes. Phase 0 remains narrow: explicit real-workspace manifest review, conflict-resolution UX, additional interruption runs, automatic offline-helper continuation, repeated clean/conflict evidence, and the zero-terminal journey remain open. Provider-service identity isolation, network recovery, revocation, provider-policy review, and repetition remain separate pre-alpha or compatibility-promotion gates.
+The founder EC2 spike now passes the provider-path portion once: direct phone control, strongly corroborated laptop-off execution, EC2 stop/start recovery, exact post-restart folder binding, guarded native approval observation, versioned checkpointing, exact S3 restore, and a fresh `safeToClose: true` evaluation. On 2026-09-02, generated fixtures also passed both live Land outcomes once: the clean run completed the EBS writer fence, immutable final `C`, exact-version restore/import, local application, durable two-sided acknowledgement, ownership return, and post-ack compute stop; a separate fresh same-file conflict run restored its exact final `C`, returned `NEEDS_REVIEW`, preserved the untouched local workspace and exact private `B/L/C` stages, retained `LANDING`, fenced cloud writers, omitted acknowledgement and cleanup, and was byte-stable on retry. Separately, a local-only reviewed real-workspace policy module passes 77 focused tests for discovery, exact approval, strict policy decoding, drift detection, trusted in-process return classification, and forged-plan rejection. It has no transfer, ledger, cloud, or Land integration. Phase 0 remains narrow: policy-bound generic B/reconstruction/checkpoint/Land, customer review UI, conflict-resolution UX, additional interruption runs, automatic offline-helper continuation, repeated clean/conflict evidence, and the zero-terminal journey remain open. Provider-service identity isolation, network recovery, revocation, provider-policy review, and repetition remain separate pre-alpha or compatibility-promotion gates.
 
 | Phase 0 gate | Current state |
 | --- | --- |
@@ -72,22 +73,22 @@ The founder EC2 spike now passes the provider-path portion once: direct phone co
 | Guarded approval/proof turn | Passed once; selected decision and responder identity remain unavailable |
 | Immutable checkpoint and exact restore | The first run's four checkpoints passed exact-version restore through `0004-land-final`; the fresh conflict run's exact `0002-land-final` also passed restore |
 | Phase 0 private capture and return merge | One clean and one deliberate-conflict live founder-fixture transaction passed; repeat, conflict-resolution, offline-helper, and broader interruption evidence remain pending |
-| Real-workspace capture and complete product Land | Phase 1 target; not implemented |
+| Real-workspace capture and complete product Land | Local policy foundation passes 77 focused tests; generic B/upload/reconstruction/checkpoint/Land are not implemented |
 | No-terminal customer journey | Phase 1 target; not implemented |
 | Provider-service and credential isolation | Pre-alpha blocker; not implemented |
 | Network recovery, revoke, provider-policy review, repetition | Compatibility/promotion gates; not yet tested |
 
 ### Immediate next evidence gate
 
-Build the smallest explicit real-workspace manifest/review flow while continuing adversarial fixture evidence:
+Bind the reviewed local policy to the smallest generic B/reconstruction path while continuing adversarial fixture evidence:
 
-1. separate discovery from permission and show a versioned candidate manifest before any real-workspace upload;
-2. require explicit inclusion of ignored or sensitive files and hard-exclude credentials, unrelated paths, and unapproved content;
-3. bind the approved manifest to baseline `B` and the later checkpoint/Land ledger, preserving the user's branch, refs, real index, and working tree;
-4. run the reviewed flow on one noncritical real repository only after the transfer boundary is inspectable;
-5. repeat clean and conflicted live fixture round trips from additional fresh sessions, requiring every conflict to stay fenced in `LANDING` with both sides preserved and no acknowledgement or cleanup;
-6. interrupt fresh fixture runs at the durable phase boundaries and verify stable `C`, receipt, acknowledgement, and lease identities on retry;
-7. separately implement and test a Land request made while the original helper is offline and automatic continuation on reconnect.
+1. keep candidate discovery and approval local, then validate the exact approved `EffectivePolicyV1` immediately before generic capture;
+2. capture only `initialTransferEntries` into a Lift-private synthetic root `B` and bind B, its manifest, and session metadata to `policySha256`;
+3. do not fetch or import the user's `HEAD`, refs, reflogs, or reachable history for generic B; record source identities only as metadata;
+4. reconstruct the exact policy-selected tree beside the fixture adapter and reject fixture/generic schema mixing;
+5. prove on one noncritical real repository that reconstruction is exact, excluded bytes and arbitrary history do not transfer, and the user's branch, refs, real index, and working tree remain unchanged;
+6. next carry fresh return-rule classification into checkpoints and Land, explicitly proving that new ordinary cloud files survive while new ignored or sensitive files hold for review;
+7. repeat clean and conflicted live fixture round trips, interrupt durable boundaries, and separately implement offline-helper continuation.
 
 ### Evidence recorded on 2026-09-01
 
@@ -108,7 +109,7 @@ Build the smallest explicit real-workspace manifest/review flow while continuing
 - The first Land attempt stopped safely at controller phase `FINAL_CHECKPOINT_DURABLE` on a `/run` parent-directory mode mismatch. After the permission fix, the same operation reused the same `C` and completed with `APPLIED` merge `444b397a5ced2a0ba7d7b6e3b888f7a694523d9e`, receipt `da72f1ab6e81572dfc58501f1437af9835d1de1d`, and acknowledgement `d2e97376dadaa3e0aadd3af3c5c9545c28c9ec246b7deccfb382110b91e02bbc`.
 - The guest reached `ACKNOWLEDGED`, the controller lease returned to `LOCAL_PRIMARY`, and compute stopped only after acknowledgement.
 - Fresh disposable run `p0-20260902183748-a7b1` exercised a deliberate both-modified conflict. Exact restore-tested `0002-land-final` was imported; Land returned `NEEDS_REVIEW`; controller and guest stayed `LANDING`; the original local content and Git state stayed exact; private stages preserved `B/L/C`; no acknowledgement or cleanup occurred; the cloud writer remained fenced; and a repeated Land returned `changed: false` without mutating its evidence.
-- Separate provider-service identity and credential isolation are pre-alpha gates. Explicit real-workspace review, network interruption, revocation, repeated laptop-off and clean/conflict runs, broader interruption coverage, conflict-resolution UX, automatic offline-helper continuation, and the complete no-terminal journey remain pending.
+- Separate provider-service identity and credential isolation are pre-alpha gates. Policy-bound real-workspace transfer, network interruption, revocation, repeated laptop-off and clean/conflict runs, broader interruption coverage, conflict-resolution UX, automatic offline-helper continuation, and the complete no-terminal journey remain pending.
 
 ### Exit criteria
 
