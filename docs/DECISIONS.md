@@ -270,6 +270,24 @@ Boundary: Do not claim a provider-hosted agent has joined a live Lift workspace 
 
 Failure condition: If one provider or GitHub supplies a superior persistent team-owned project workspace with local-state import, outside-agent participation, shared and isolated execution, permissions, project browser and secret state, provenance, and recovery, Lift's standalone differentiation may disappear.
 
+### D-042: Separate initial transfer from return policy and keep generic B free of user history
+
+Decision: Compile reviewed real-workspace approval into two distinct things: an exact `initialTransferEntries` set for the bytes and metadata approved at Lift Off, and an immutable rule-based return policy for complete later snapshots. Existing approved paths may change or become tracked tombstones; new ordinary tracked or untracked paths may return; new ignored or sensitive paths require review; and hard-excluded, unsafe, unsupported, or unknown-tombstone state blocks. Never reuse the initial path set as the checkpoint or Land allowlist.
+
+Reason: An exact initial allowlist is the right permission boundary for upload, but it is the wrong model for work created after Lift Off. Reusing it would silently drop ordinary agent-created files. Conversely, treating every later path as allowed would let `git add -f`, a changed `.gitignore`, or generated sensitive state bypass the original safety boundary.
+
+Decision: For the generic reviewed path, create baseline `B` as a Lift-private synthetic snapshot root containing only approved current state. Record the source branch, `HEAD`, index hash, refs hash, and physical identity as metadata, but do not fetch, import, bundle, parent to, or publish arbitrary user refs, reflogs, `HEAD` ancestry, or their reachable objects. Preserve history from B forward through Lift's own private checkpoint chain, `C`, `L`, `M`, and receipt. Native repository-history transfer requires a separate explicit design and authorization.
+
+Reason: Historical Git objects can contain deleted credentials or other content absent from the reviewed current manifest. Filtering B's visible tree does not sanitize objects pulled in through source refs or parents. Lift must preserve its own session history without silently expanding path approval into authorization for the user's repository history.
+
+Compatibility: The marker-gated generated fixture may retain its current ref/history behavior as a separate adapter and regression harness. Generic policy artifacts and fixture `fixturePolicy` artifacts are mutually exclusive and must not be accepted as one another. This decision records the integration architecture; the current code implements only the local candidate, approval, effective-policy, trusted in-process return-classification, and plan-validation foundation. A candidate self-hash does not authenticate scanner provenance or prove that no path was omitted. Portable checkpoint or Land use requires an authenticated scanner-produced complete snapshot bound to the exact policy, approval scope, role, and scanner/classifier version. Generic B, upload, reconstruction, checkpoints, and Land remain unimplemented.
+
+### D-043: Real-workspace discovery does not trust ambient process configuration
+
+Decision: Run discovery Git commands through a validated root-owned absolute system executable with a minimal environment based on the operating-system account rather than ambient `PATH`, `HOME`, dynamic-loader variables, or Git selectors. Honor a validated absolute custom XDG configuration root, then discover configured excludes sources or Git's implicit XDG global ignore separately, copy them through no-follow owner/link/size-checked descriptors, bind their ordered content identities into the candidate, and apply only the private copies. Reject workspace roots beneath protected account-private directories. Treat opaque databases and common credential or browser stores conservatively by path even when content heuristics find no recognizable token. Strict wire decoders must reject redundant null fields and every other noncanonical representation.
+
+Reason: Repository-controlled executables, spoofed environment state, external ignore files, and opaque binary credential stores all sit outside ordinary source-file assumptions. If discovery trusts them implicitly, it can execute attacker-selected code, bypass the home-directory guard, or recommend private state for upload. Binding the exact excludes inputs and canonical representation makes approval deterministic without enabling arbitrary user Git configuration during later inspection commands.
+
 ## Pending decisions
 
 ### P-001: Hosted versus BYO cloud first

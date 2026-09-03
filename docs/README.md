@@ -13,8 +13,9 @@ For a complete introduction, read in this order:
 5. [`CONTEXT.md`](CONTEXT.md) for the product thesis and experience principles.
 6. [`ICP.md`](ICP.md) for the exact first customer and anti-ICP.
 7. [`EXPERIENCE.md`](EXPERIENCE.md) for workspace creation, mobile agent launch, Lift Off, and Land journeys.
-8. [`DECISIONS.md`](DECISIONS.md) before changing product scope or architecture.
-9. [`ROADMAP.md`](ROADMAP.md) for the current evidence gate and next milestone.
+8. [`WORKSPACE_POLICY.md`](WORKSPACE_POLICY.md) for the reviewed real-workspace discovery, approval, and return-policy boundary.
+9. [`DECISIONS.md`](DECISIONS.md) before changing product scope or architecture.
+10. [`ROADMAP.md`](ROADMAP.md) for the current evidence gate and next milestone.
 
 ## Reading paths
 
@@ -35,9 +36,10 @@ For a complete introduction, read in this order:
 2. [`RUNTIME_RESEARCH.md`](RUNTIME_RESEARCH.md)
 3. [`REMOTE_RUNNER.md`](REMOTE_RUNNER.md)
 4. [`STATE_SYNC.md`](STATE_SYNC.md)
-5. [`COMPATIBILITY.md`](COMPATIBILITY.md)
-6. [`SECURITY.md`](SECURITY.md)
-7. [`RISK_REGISTER.md`](RISK_REGISTER.md)
+5. [`WORKSPACE_POLICY.md`](WORKSPACE_POLICY.md)
+6. [`COMPATIBILITY.md`](COMPATIBILITY.md)
+7. [`SECURITY.md`](SECURITY.md)
+8. [`RISK_REGISTER.md`](RISK_REGISTER.md)
 
 ### Validation and go-to-market
 
@@ -65,6 +67,7 @@ For a complete introduction, read in this order:
 - [`ICP.md`](ICP.md) defines the beachhead customer, triggers, alternatives, anti-ICP, and qualification score.
 - [`EXPERIENCE.md`](EXPERIENCE.md) defines the zero-terminal onboarding, one-button launch, safe-to-close, and Land contract.
 - [`STATE_SYNC.md`](STATE_SYNC.md) defines the three-way state model, transactional return, and conflict behavior.
+- [`WORKSPACE_POLICY.md`](WORKSPACE_POLICY.md) defines the local candidate -> approval -> effective-policy -> return-plan foundation and the still-pending B/checkpoint/Land integration.
 - [`RESEARCH.md`](RESEARCH.md) contains user evidence, category signals, competitors, and remaining validation gaps.
 - [`RUNTIME_RESEARCH.md`](RUNTIME_RESEARCH.md) records the current infrastructure comparison and official Codex and Claude remote-control findings.
 - [`spikes/2026-08-31-codex-headless-remote.md`](spikes/2026-08-31-codex-headless-remote.md) records the versioned Codex Linux, phone, and EC2 feasibility evidence.
@@ -75,6 +78,7 @@ For a complete introduction, read in this order:
 - [`ARCHITECTURE.md`](ARCHITECTURE.md) defines the selected prototype boundaries, state model, and handoff flows.
 - [`REMOTE_RUNNER.md`](REMOTE_RUNNER.md) defines the provider-blind workload runner, user-owned recipes, and Codex-first spike.
 - [`STATE_SYNC.md`](STATE_SYNC.md) defines private Git snapshots, PR-like Land reconciliation, transactional apply, and recovery.
+- [`WORKSPACE_POLICY.md`](WORKSPACE_POLICY.md) records the exact local v1 policy schemas, initial-versus-return rule split, and generic Git-history boundary.
 - [`COMPATIBILITY.md`](COMPATIBILITY.md) records what is verified, experimental, planned, relayed, or unsupported.
 - [`SECURITY.md`](SECURITY.md) defines the threat model and minimum safeguards.
 - [`RISK_REGISTER.md`](RISK_REGISTER.md) ranks product, provider, state, security, market, and company risks.
@@ -102,11 +106,11 @@ The first proof remains a local-to-cloud-to-phone-to-local loop in which the lap
 
 ## Current narrow wedge
 
-One user lifts one active coding project from macOS into an isolated persistent Linux workspace, continues Codex through an existing OpenAI interface, and safely reconciles the result back to the laptop. Founder-only generated-fixture spikes have observed direct phone-to-Ubuntu-EC2 control, one full stop/start recovery with exact post-restart folder binding and guarded approval/proof evidence, and live clean and conflicted Land paths from EC2/EBS through exact versioned S3 recovery to the Mac. The clean pass restored and imported immutable `0004-land-final`, applied the reconciliation, stored the exact guest acknowledgement, returned ownership to `LOCAL_PRIMARY`, and stopped EC2. Fresh run `p0-20260902183748-a7b1` sealed and restore-tested `0002-land-final`, returned `NEEDS_REVIEW` for a deliberate same-file conflict, left local state untouched and both sides recoverable, kept ownership `LANDING` and the runner fenced, retained compute, and returned `changed: false` on retry. It is not yet a supported promise because reviewable arbitrary real-workspace capture, a customer UI/helper, automatic offline-helper wake, conflict-resolution UI, separate provider-service identity and credential isolation, network recovery, revocation, broader repetition and interruption coverage, and the no-terminal journey remain pending.
+One user lifts one active coding project from macOS into an isolated persistent Linux workspace, continues Codex through an existing OpenAI interface, and safely reconciles the result back to the laptop. Founder-only generated-fixture spikes have observed direct phone-to-Ubuntu-EC2 control, one full stop/start recovery with exact post-restart folder binding and guarded approval/proof evidence, and live clean and conflicted Land paths from EC2/EBS through exact versioned S3 recovery to the Mac. A separate local-only policy foundation now discovers and classifies a real Git worktree, binds explicit per-path approval, compiles a strict portable policy, and classifies caller-supplied return candidates for trusted in-process use without transferring bytes. It does not authenticate scanner provenance or candidate completeness and is not connected to fixture capture, EC2 reconstruction, checkpoints, or Land. Reviewable arbitrary-workspace transfer, a customer UI/helper, automatic offline-helper wake, conflict-resolution UI, separate provider-service identity and credential isolation, network recovery, revocation, broader repetition and interruption coverage, and the no-terminal journey remain pending.
 
 ## Current phase
 
-Phase 0: the provider path, private-Git cloud checkpoints, one full EC2 stop/start phone recovery, one clean disposable-fixture round trip, and one fresh deliberate-conflict round trip are evidenced. The first clean Land attempt's `/run` record-directory permission failure resumed safely from the same durable `0004-land-final`; the fix was tested and the retry completed. Conflict run `p0-20260902183748-a7b1` stopped safely at `NEEDS_REVIEW` around restore-tested `0002-land-final` and replayed idempotently. The immediate product boundary is a reviewable arbitrary-workspace manifest and customer helper/UI path. H6 remains open: conflict resolution, automatic offline-helper wake, broader repetition and interruption coverage, service-identity and credential isolation, production isolation, network recovery, revocation, the zero-terminal journey, and launch readiness remain gates. See [`CURRENT_STATE.md`](CURRENT_STATE.md) and [`ROADMAP.md`](ROADMAP.md).
+Phase 0: the provider path, private-Git cloud checkpoints, one full EC2 stop/start phone recovery, one clean disposable-fixture round trip, and one fresh deliberate-conflict round trip are evidenced. The local real-workspace policy primitive is implemented and focused-tested, but no real project has crossed its transfer boundary. The immediate implementation boundary is policy-bound generic `B` capture and reconstruction beside the unchanged fixture adapter; the immediate product boundary still includes the customer helper and review UI. H6 remains open: conflict resolution, automatic offline-helper wake, broader repetition and interruption coverage, service-identity and credential isolation, production isolation, network recovery, revocation, the zero-terminal journey, and launch readiness remain gates. See [`CURRENT_STATE.md`](CURRENT_STATE.md), [`WORKSPACE_POLICY.md`](WORKSPACE_POLICY.md), and [`ROADMAP.md`](ROADMAP.md).
 
 ## Knowledge-base maintenance
 
